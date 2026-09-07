@@ -2,448 +2,396 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
-<title>Speedtest — Uji Kecepatan Jaringan</title>
-<meta name="description" content="Uji ping, kecepatan unduh, dan unggah jaringan Anda langsung dari peramban. Tidak ada data yang disimpan di server.">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Speedtest</title>
+<meta name="description" content="Tes kecepatan internet: ping, unduh, dan unggah — diproses langsung di peramban Anda.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0b0f12;
-    --surface:#12181c;
-    --line:#1e262b;
-    --text:#e7edf0;
-    --muted:#7c8b93;
-    --accent:#e8a33d;
-    --accent-soft:rgba(232,163,61,0.12);
-    --good:#4caf7d;
-    --bad:#e0645a;
-    --mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-    --sans:'Space Grotesk', system-ui, -apple-system, sans-serif;
-    --circ:628.3185;
+    --bg:#EDEFEC;
+    --panel-bg:#F8F9F6;
+    --ink:#14181B;
+    --muted:#5B6560;
+    --accent:#1856F2;
+    --warn:#B4791F;
+    --line:rgba(20,24,27,0.14);
   }
-
   *{ box-sizing:border-box; }
-
   html,body{ height:100%; }
-
   body{
     margin:0;
     background:var(--bg);
-    color:var(--text);
-    font-family:var(--sans);
-    -webkit-font-smoothing:antialiased;
-    display:flex;
-    justify-content:center;
-    padding:32px 20px 40px;
-  }
-
-  .page{
-    width:100%;
-    max-width:520px;
-  }
-
-  header{
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
     display:flex;
     align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    margin-bottom:36px;
+    justify-content:center;
+    padding:28px 16px;
   }
-
-  .brand{
-    font-size:18px;
-    font-weight:700;
+  main.panel{
+    width:100%;
+    max-width:620px;
+    background:var(--panel-bg);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:clamp(28px,5vw,48px);
+  }
+  header.plate{
+    border-bottom:1px solid var(--line);
+    padding-bottom:18px;
+    margin-bottom:32px;
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:6px;
+  }
+  h1{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    font-size:clamp(24px,4vw,30px);
+    margin:0;
     letter-spacing:-0.01em;
   }
-
-  .isp{
-    display:flex;
-    align-items:center;
-    gap:8px;
+  .provider{
     font-size:13px;
     color:var(--muted);
+    margin:0;
     text-align:right;
-    max-width:65%;
   }
-
-  .isp__dot{
-    width:7px;
-    height:7px;
-    border-radius:50%;
-    background:var(--muted);
-    flex:none;
-    transition:background .3s ease;
-  }
-  .isp__dot[data-state="ok"]{ background:var(--good); }
-  .isp__dot[data-state="error"]{ background:var(--bad); }
-
-  .isp__name{ transition:opacity .25s ease; }
-
-  main{
-    background:var(--surface);
-    border:1px solid var(--line);
-    border-radius:16px;
-    padding:40px 24px 32px;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-  }
-
-  .gauge{
-    position:relative;
-    width:min(60vw, 240px);
-    aspect-ratio:1/1;
-    margin-bottom:28px;
-  }
-
-  .gauge svg{
-    width:100%;
-    height:100%;
-    display:block;
-  }
-
-  .gauge__track{
-    fill:none;
-    stroke:var(--line);
-    stroke-width:12;
-  }
-
-  .gauge__arc{
-    fill:none;
-    stroke:var(--accent);
-    stroke-width:12;
-    stroke-linecap:round;
-    stroke-dasharray:var(--circ);
-    stroke-dashoffset:var(--circ);
-    transform:rotate(-90deg);
-    transform-origin:50% 50%;
-    transition:stroke-dashoffset .5s ease;
-  }
-
-  .gauge__readout{
-    position:absolute;
-    inset:0;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    gap:2px;
-  }
-
-  .gauge__value{
-    font-family:var(--mono);
-    font-size:clamp(30px, 8vw, 40px);
+  .readout-wrap{ text-align:center; margin-bottom:34px; }
+  .readout{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:clamp(46px,11vw,68px);
     font-weight:500;
     line-height:1;
     font-variant-numeric:tabular-nums;
   }
-
-  .gauge__unit{
-    font-family:var(--mono);
+  .readout .unit{
+    font-size:0.32em;
+    color:var(--muted);
+    margin-left:8px;
+  }
+  .phase-label{
     font-size:13px;
     color:var(--muted);
+    margin:8px 0 0;
+    min-height:18px;
   }
-
-  .gauge__label{
-    margin-top:8px;
-    font-size:12px;
-    color:var(--muted);
+  .progress-track{
+    height:3px;
+    background:var(--line);
+    border-radius:2px;
+    margin-top:18px;
+    overflow:hidden;
   }
-
-  .stats{
-    display:grid;
-    grid-template-columns:repeat(3, 1fr);
-    width:100%;
-    margin-bottom:28px;
+  .progress-fill{
+    height:100%;
+    width:0%;
+    background:var(--accent);
+    transition:width .12s linear;
   }
-
-  .stat{
+  .steps{
+    display:flex;
+    gap:12px;
+    margin-bottom:32px;
+  }
+  .step{
+    flex:1;
     text-align:center;
-    padding:0 8px;
+    padding:14px 8px;
+    border:1px solid var(--line);
+    border-radius:4px;
+    opacity:.5;
+    transition:opacity .3s ease, border-color .3s ease;
   }
-
-  .stat + .stat{
-    border-left:1px solid var(--line);
+  .step.active{ opacity:1; border-color:var(--accent); }
+  .step.done{ opacity:1; }
+  .step.error{ opacity:1; border-color:var(--warn); }
+  .step-label{
+    display:block;
+    font-size:13px;
+    color:var(--muted);
+    margin-bottom:6px;
   }
-
-  .stat__value{
-    font-family:var(--mono);
-    font-size:19px;
+  .step-value{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:18px;
+    font-weight:500;
     font-variant-numeric:tabular-nums;
   }
-
-  .stat__label{
-    margin-top:4px;
-    font-size:12px;
-    color:var(--muted);
-  }
-
-  button.run{
+  .start-btn{
+    display:block;
     width:100%;
-    padding:14px 20px;
-    border-radius:10px;
-    border:1px solid var(--accent);
-    background:transparent;
-    color:var(--accent);
-    font-family:var(--sans);
+    padding:14px;
+    background:var(--ink);
+    color:#fff;
+    border:none;
+    border-radius:4px;
+    font-family:'IBM Plex Sans', sans-serif;
     font-size:15px;
     font-weight:500;
     cursor:pointer;
-    transition:background .2s ease, color .2s ease;
   }
-
-  button.run:hover:not(:disabled){
-    background:var(--accent-soft);
-  }
-
-  button.run:focus-visible{
-    outline:2px solid var(--accent);
-    outline-offset:3px;
-  }
-
-  button.run:disabled{
-    opacity:.55;
-    cursor:not-allowed;
-  }
-
-  .status{
-    margin-top:16px;
-    min-height:18px;
-    font-size:13px;
-    color:var(--muted);
+  .start-btn:hover:not(:disabled){ background:var(--accent); }
+  .start-btn:disabled{ opacity:.55; cursor:not-allowed; }
+  .note{
     text-align:center;
-  }
-
-  footer{
-    margin-top:28px;
-    padding-top:20px;
-    border-top:1px solid var(--line);
     font-size:12px;
-    line-height:1.6;
     color:var(--muted);
-    text-align:center;
+    margin:16px 0 0;
+    line-height:1.5;
   }
-
-  @media (prefers-reduced-motion: reduce){
-    .gauge__arc, .isp__name{ transition:none; }
+  @media (max-width:480px){
+    .steps{ flex-direction:column; }
+    header.plate{ flex-direction:column; align-items:flex-start; }
+    .provider{ text-align:left; }
   }
+  @media (prefers-reduced-motion:reduce){
+    *{ transition:none !important; animation:none !important; }
+  }
+  :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
 </style>
 </head>
 <body>
-
-<div class="page">
-
-  <header>
-    <div class="brand">Speedtest</div>
-    <div class="isp">
-      <span class="isp__dot" id="ispDot" data-state="loading"></span>
-      <span class="isp__name" id="ispName">Mendeteksi penyedia layanan…</span>
-    </div>
+<main class="panel">
+  <header class="plate">
+    <h1>Speedtest</h1>
+    <p class="provider" id="provider">Mendeteksi penyedia layanan…</p>
   </header>
 
-  <main>
-    <div class="gauge">
-      <svg viewBox="0 0 240 240">
-        <circle class="gauge__track" cx="120" cy="120" r="100"></circle>
-        <circle class="gauge__arc" id="gaugeArc" cx="120" cy="120" r="100"></circle>
-      </svg>
-      <div class="gauge__readout">
-        <span class="gauge__value" id="gaugeValue">--</span>
-        <span class="gauge__unit" id="gaugeUnit">Mbps</span>
-        <span class="gauge__label" id="gaugeLabel">Menunggu</span>
-      </div>
+  <div class="readout-wrap">
+    <div class="readout"><span id="readoutValue">0</span><span class="unit" id="readoutUnit">ms</span></div>
+    <p class="phase-label" id="phaseLabel">Siap memulai</p>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div class="steps" id="steps">
+    <div class="step" data-step="ping">
+      <span class="step-label">Ping</span>
+      <span class="step-value" id="val-ping">—</span>
     </div>
-
-    <div class="stats">
-      <div class="stat">
-        <div class="stat__value" id="statPing">--</div>
-        <div class="stat__label">Ping</div>
-      </div>
-      <div class="stat">
-        <div class="stat__value" id="statDown">--</div>
-        <div class="stat__label">Unduh</div>
-      </div>
-      <div class="stat">
-        <div class="stat__value" id="statUp">--</div>
-        <div class="stat__label">Unggah</div>
-      </div>
+    <div class="step" data-step="download">
+      <span class="step-label">Unduh</span>
+      <span class="step-value" id="val-download">—</span>
     </div>
+    <div class="step" data-step="upload">
+      <span class="step-label">Unggah</span>
+      <span class="step-value" id="val-upload">—</span>
+    </div>
+  </div>
 
-    <button type="button" class="run" id="runBtn">Mulai pengujian</button>
-    <div class="status" id="statusLine" role="status" aria-live="polite">Siap menguji koneksi Anda.</div>
-  </main>
+  <button class="start-btn" id="startBtn">Mulai tes</button>
+  <p class="note">Pengukuran diproses langsung di peramban Anda melalui koneksi terenkripsi (HTTPS). Alamat IP tidak ditampilkan maupun disimpan di halaman ini.</p>
+</main>
 
-  <footer>
-    Pengujian berjalan sepenuhnya di peramban Anda melalui jaringan Cloudflare.
-    Alamat IP tidak pernah ditampilkan maupun disimpan — hanya nama penyedia layanan yang ditampilkan.
-  </footer>
-
-</div>
-
-<script type="module">
-  const CIRC = 628.3185;
-
-  const el = {
-    ispDot: document.getElementById('ispDot'),
-    ispName: document.getElementById('ispName'),
-    gaugeArc: document.getElementById('gaugeArc'),
-    gaugeValue: document.getElementById('gaugeValue'),
-    gaugeUnit: document.getElementById('gaugeUnit'),
-    gaugeLabel: document.getElementById('gaugeLabel'),
-    statPing: document.getElementById('statPing'),
-    statDown: document.getElementById('statDown'),
-    statUp: document.getElementById('statUp'),
-    runBtn: document.getElementById('runBtn'),
-    statusLine: document.getElementById('statusLine'),
+<script>
+(function(){
+  const els = {
+    provider: document.getElementById('provider'),
+    readoutValue: document.getElementById('readoutValue'),
+    readoutUnit: document.getElementById('readoutUnit'),
+    phaseLabel: document.getElementById('phaseLabel'),
+    progressFill: document.getElementById('progressFill'),
+    startBtn: document.getElementById('startBtn'),
+    steps: {
+      ping: document.querySelector('.step[data-step="ping"]'),
+      download: document.querySelector('.step[data-step="download"]'),
+      upload: document.querySelector('.step[data-step="upload"]'),
+    },
+    vals: {
+      ping: document.getElementById('val-ping'),
+      download: document.getElementById('val-download'),
+      upload: document.getElementById('val-upload'),
+    }
   };
 
-  const PHASE_TEXT = {
-    idle: 'Siap menguji koneksi Anda.',
-    latency: 'Mengukur latensi…',
-    download: 'Mengukur kecepatan unduh…',
-    upload: 'Mengukur kecepatan unggah…',
-    done: 'Pengujian selesai.',
-    error: 'Pengujian gagal. Periksa koneksi lalu coba lagi.',
-  };
+  const DOWN_URL = (bytes) => `https://speed.cloudflare.com/__down?bytes=${bytes}&x=${Date.now()}-${Math.random()}`;
+  const UP_URL = 'https://speed.cloudflare.com/__up';
 
-  const GAUGE_LABEL = {
-    idle: 'Menunggu',
-    latency: 'Latensi',
-    download: 'Unduh',
-    upload: 'Unggah',
-  };
-
-  function setStatus(phase){
-    el.statusLine.textContent = PHASE_TEXT[phase] || '';
+  function setReadout(value, unit){
+    els.readoutValue.textContent = value;
+    els.readoutUnit.textContent = unit;
   }
 
-  function setGauge(kind, value){
-    const max = kind === 'latency' ? 200 : 1000;
-    const frac = Math.max(0, Math.min(1, value / max));
-    el.gaugeArc.style.strokeDashoffset = String(CIRC * (1 - frac));
-    el.gaugeValue.textContent = kind === 'latency'
-      ? Math.round(value).toString()
-      : (value < 10 ? value.toFixed(2) : value.toFixed(1));
-    el.gaugeUnit.textContent = kind === 'latency' ? 'ms' : 'Mbps';
-    el.gaugeLabel.textContent = GAUGE_LABEL[kind] || '';
+  function setProgress(fraction){
+    els.progressFill.style.width = Math.max(0, Math.min(1, fraction)) * 100 + '%';
   }
 
-  function resetGauge(){
-    el.gaugeArc.style.strokeDashoffset = String(CIRC);
-    el.gaugeValue.textContent = '--';
-    el.gaugeUnit.textContent = 'Mbps';
-    el.gaugeLabel.textContent = GAUGE_LABEL.idle;
+  function setActiveStep(name){
+    Object.entries(els.steps).forEach(([key, node]) => {
+      node.classList.toggle('active', key === name);
+    });
   }
 
-  function fmtMs(ms){
-    return Math.round(ms) + ' ms';
+  function markDone(name, text){
+    const node = els.steps[name];
+    node.classList.remove('active');
+    node.classList.add('done');
+    els.vals[name].textContent = text;
   }
 
-  function fmtMbps(bps){
-    const mbps = bps / 1e6;
-    return (mbps < 10 ? mbps.toFixed(2) : mbps.toFixed(1)) + ' Mbps';
+  function markError(name){
+    const node = els.steps[name];
+    node.classList.remove('active');
+    node.classList.add('error');
+    els.vals[name].textContent = 'Gagal';
   }
 
-  // --- Provider detection (name only, IP is fetched but never read or shown) ---
-  async function detectProvider(){
+  // ---- Provider detection (name only, no IP shown) ----
+  async function loadProvider(){
     try{
-      const res = await fetch('https://ipwho.is/', { cache: 'no-store' });
-      if(!res.ok) throw new Error('lookup failed');
+      const res = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
       const data = await res.json();
-      if(!data || data.success === false) throw new Error('lookup failed');
-      const isp = (data.connection && (data.connection.isp || data.connection.org)) || null;
-      if(!isp) throw new Error('no isp field');
-      el.ispName.textContent = String(isp);
-      el.ispDot.dataset.state = 'ok';
-    } catch(e){
-      el.ispName.textContent = 'Penyedia layanan tidak terdeteksi';
-      el.ispDot.dataset.state = 'error';
+      const name = data.org || data.isp || data.company || null;
+      els.provider.textContent = name ? `Terhubung melalui ${name}` : 'Penyedia layanan tidak terdeteksi';
+    }catch(e){
+      els.provider.textContent = 'Penyedia layanan tidak terdeteksi';
     }
   }
-  detectProvider();
 
-  // --- Speed test engine (Cloudflare's public measurement endpoints) ---
-  let enginePromise = null;
-  function loadEngine(){
-    if(!enginePromise){
-      enginePromise = import('https://cdn.skypack.dev/@cloudflare/speedtest')
-        .then((m) => m.default)
-        .catch((err) => { enginePromise = null; throw err; });
+  // ---- Ping ----
+  async function measurePing(count){
+    const samples = [];
+    for(let i=0; i<count; i++){
+      const t0 = performance.now();
+      try{
+        await fetch(DOWN_URL(0), { cache: 'no-store', mode: 'cors' });
+      }catch(e){
+        continue;
+      }
+      const rtt = performance.now() - t0;
+      if(i > 0) samples.push(rtt); // first request warms up the connection
+      setReadout(Math.round(rtt), 'ms');
+      setProgress((i + 1) / count);
     }
-    return enginePromise;
+    if(samples.length === 0) throw new Error('ping failed');
+    samples.sort((a,b) => a - b);
+    return samples[Math.floor(samples.length / 2)];
   }
 
-  let hasRunOnce = false;
+  // ---- Download ----
+  function measureDownload(bytes, onProgress){
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', DOWN_URL(bytes), true);
+      xhr.responseType = 'arraybuffer';
+      const start = performance.now();
+      xhr.onprogress = (e) => {
+        const elapsed = (performance.now() - start) / 1000;
+        if(elapsed > 0.05 && e.loaded > 0){
+          const mbps = (e.loaded * 8) / elapsed / 1_000_000;
+          onProgress(mbps, e.loaded / bytes);
+        }
+      };
+      xhr.onload = () => {
+        const elapsed = (performance.now() - start) / 1000;
+        const total = xhr.response ? xhr.response.byteLength : bytes;
+        resolve((total * 8) / elapsed / 1_000_000);
+      };
+      xhr.onerror = () => reject(new Error('download failed'));
+      xhr.send();
+    });
+  }
+
+  // ---- Upload ----
+  function randomBlob(bytes){
+    const arr = new Uint8Array(bytes);
+    const chunk = 65536;
+    for(let i=0; i<bytes; i+=chunk){
+      crypto.getRandomValues(arr.subarray(i, Math.min(i + chunk, bytes)));
+    }
+    return new Blob([arr]);
+  }
+
+  function measureUpload(bytes, onProgress){
+    return new Promise((resolve, reject) => {
+      const blob = randomBlob(bytes);
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', UP_URL, true);
+      const start = performance.now();
+      xhr.upload.onprogress = (e) => {
+        const elapsed = (performance.now() - start) / 1000;
+        if(elapsed > 0.05 && e.loaded > 0){
+          const mbps = (e.loaded * 8) / elapsed / 1_000_000;
+          onProgress(mbps, e.loaded / bytes);
+        }
+      };
+      xhr.onload = () => {
+        const elapsed = (performance.now() - start) / 1000;
+        resolve((bytes * 8) / elapsed / 1_000_000);
+      };
+      xhr.onerror = () => reject(new Error('upload failed'));
+      xhr.send(blob);
+    });
+  }
+
+  function fmtMbps(v){
+    return v >= 100 ? v.toFixed(0) : v.toFixed(1);
+  }
 
   async function runTest(){
-    el.runBtn.disabled = true;
-    resetGauge();
-    el.statPing.textContent = '--';
-    el.statDown.textContent = '--';
-    el.statUp.textContent = '--';
-    setStatus('latency');
+    els.startBtn.disabled = true;
+    els.startBtn.textContent = 'Sedang menguji…';
+    Object.values(els.steps).forEach(s => s.classList.remove('active','done','error'));
+    Object.values(els.vals).forEach(v => v.textContent = '—');
+    setProgress(0);
 
-    let SpeedTest;
+    // Ping
+    els.phaseLabel.textContent = 'Mengukur ping';
+    setActiveStep('ping');
+    setReadout('0', 'ms');
     try{
-      SpeedTest = await loadEngine();
-    } catch(e){
-      setStatus('error');
-      el.runBtn.disabled = false;
-      return;
+      const ping = await measurePing(6);
+      markDone('ping', Math.round(ping) + ' ms');
+    }catch(e){
+      markError('ping');
     }
 
-    const engine = new SpeedTest({ autoStart: false });
+    // Download
+    els.phaseLabel.textContent = 'Mengukur kecepatan unduh';
+    setActiveStep('download');
+    setReadout('0', 'Mbps');
+    setProgress(0);
+    try{
+      const down = await measureDownload(30_000_000, (mbps, frac) => {
+        setReadout(fmtMbps(mbps), 'Mbps');
+        setProgress(frac);
+      });
+      markDone('download', fmtMbps(down) + ' Mbps');
+      setReadout(fmtMbps(down), 'Mbps');
+    }catch(e){
+      markError('download');
+    }
 
-    engine.onResultsChange = ({ type }) => {
-      const r = engine.results;
-      if(type === 'latency'){
-        setStatus('latency');
-        const ms = r.getUnloadedLatency && r.getUnloadedLatency();
-        if(typeof ms === 'number' && !Number.isNaN(ms)){
-          setGauge('latency', ms);
-          el.statPing.textContent = fmtMs(ms);
-        }
-      } else if(type === 'download'){
-        setStatus('download');
-        const bps = r.getDownloadBandwidth && r.getDownloadBandwidth();
-        if(typeof bps === 'number' && !Number.isNaN(bps)){
-          setGauge('download', bps / 1e6);
-          el.statDown.textContent = fmtMbps(bps);
-        }
-      } else if(type === 'upload'){
-        setStatus('upload');
-        const bps = r.getUploadBandwidth && r.getUploadBandwidth();
-        if(typeof bps === 'number' && !Number.isNaN(bps)){
-          setGauge('upload', bps / 1e6);
-          el.statUp.textContent = fmtMbps(bps);
-        }
-      }
-    };
+    // Upload
+    els.phaseLabel.textContent = 'Mengukur kecepatan unggah';
+    setActiveStep('upload');
+    setReadout('0', 'Mbps');
+    setProgress(0);
+    try{
+      const up = await measureUpload(10_000_000, (mbps, frac) => {
+        setReadout(fmtMbps(mbps), 'Mbps');
+        setProgress(frac);
+      });
+      markDone('upload', fmtMbps(up) + ' Mbps');
+      setReadout(fmtMbps(up), 'Mbps');
+    }catch(e){
+      markError('upload');
+    }
 
-    engine.onFinish = (results) => {
-      const summary = results.getSummary();
-      if(typeof summary.latency === 'number') el.statPing.textContent = fmtMs(summary.latency);
-      if(typeof summary.download === 'number') el.statDown.textContent = fmtMbps(summary.download);
-      if(typeof summary.upload === 'number') el.statUp.textContent = fmtMbps(summary.upload);
-      setStatus('done');
-      hasRunOnce = true;
-      el.runBtn.textContent = 'Uji lagi';
-      el.runBtn.disabled = false;
-    };
-
-    engine.onError = () => {
-      setStatus('error');
-      el.runBtn.disabled = false;
-    };
-
-    engine.play();
+    els.phaseLabel.textContent = 'Tes selesai';
+    setActiveStep(null);
+    els.startBtn.disabled = false;
+    els.startBtn.textContent = 'Tes ulang';
   }
 
-  el.runBtn.addEventListener('click', runTest);
+  els.startBtn.addEventListener('click', runTest);
+  loadProvider();
+})();
 </script>
-
 </body>
 </html>
