@@ -1,561 +1,449 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://speed.cloudflare.com https://ipapi.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none';">
-<meta name="referrer" content="no-referrer">
-<title>Denyut — Uji Kecepatan Internet</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Speedtest — Uji Kecepatan Jaringan</title>
+<meta name="description" content="Uji ping, kecepatan unduh, dan unggah jaringan Anda langsung dari peramban. Tidak ada data yang disimpan di server.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0A0F1C;
-    --bg-panel:#0F1729;
-    --line: rgba(234,240,246,0.09);
-    --text:#EAF0F6;
-    --text-dim:#7C8BA3;
-    --down:#4FD8E8;
-    --down-soft: rgba(79,216,232,0.12);
-    --up:#FFB258;
-    --up-soft: rgba(255,178,88,0.12);
-    --track: rgba(234,240,246,0.07);
-    --danger:#FF6B6B;
-    --ok:#63E6A0;
+    --bg:#0b0f12;
+    --surface:#12181c;
+    --line:#1e262b;
+    --text:#e7edf0;
+    --muted:#7c8b93;
+    --accent:#e8a33d;
+    --accent-soft:rgba(232,163,61,0.12);
+    --good:#4caf7d;
+    --bad:#e0645a;
+    --mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans:'Space Grotesk', system-ui, -apple-system, sans-serif;
+    --circ:628.3185;
   }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
+
+  *{ box-sizing:border-box; }
+
+  html,body{ height:100%; }
+
   body{
-    background:
-      radial-gradient(1100px 500px at 50% -10%, rgba(79,216,232,0.06), transparent 60%),
-      var(--bg);
+    margin:0;
+    background:var(--bg);
     color:var(--text);
-    font-family:'Space Grotesk', sans-serif;
-    min-height:100vh;
+    font-family:var(--sans);
     -webkit-font-smoothing:antialiased;
+    display:flex;
+    justify-content:center;
+    padding:32px 20px 40px;
   }
-  a{color:var(--down);}
-  .wrap{
-    max-width:880px;
-    margin:0 auto;
-    padding:32px 20px 64px;
+
+  .page{
+    width:100%;
+    max-width:520px;
   }
+
   header{
     display:flex;
     align-items:center;
     justify-content:space-between;
-    margin-bottom:48px;
+    gap:12px;
+    margin-bottom:36px;
   }
+
   .brand{
-    display:flex;
-    align-items:baseline;
-    gap:10px;
-  }
-  .brand-mark{
-    width:10px;height:10px;border-radius:50%;
-    background:var(--down);
-    box-shadow:0 0 0 4px var(--down-soft);
-    flex-shrink:0;
-  }
-  .brand-name{
-    font-weight:600;
-    font-size:1.15rem;
+    font-size:18px;
+    font-weight:700;
     letter-spacing:-0.01em;
   }
-  .brand-tag{
-    color:var(--text-dim);
-    font-size:0.85rem;
-  }
-  .status-pill{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:0.72rem;
-    color:var(--ok);
-    border:1px solid var(--line);
-    padding:5px 10px;
-    border-radius:20px;
+
+  .isp{
     display:flex;
     align-items:center;
-    gap:6px;
-    white-space:nowrap;
+    gap:8px;
+    font-size:13px;
+    color:var(--muted);
+    text-align:right;
+    max-width:65%;
   }
-  .status-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);}
 
-  /* Hero dial */
-  .hero{
+  .isp__dot{
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:var(--muted);
+    flex:none;
+    transition:background .3s ease;
+  }
+  .isp__dot[data-state="ok"]{ background:var(--good); }
+  .isp__dot[data-state="error"]{ background:var(--bad); }
+
+  .isp__name{ transition:opacity .25s ease; }
+
+  main{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:40px 24px 32px;
     display:flex;
     flex-direction:column;
     align-items:center;
-    text-align:center;
-    margin-bottom:52px;
   }
-  .dial-shell{
+
+  .gauge{
     position:relative;
-    width:280px;
-    height:280px;
+    width:min(60vw, 240px);
+    aspect-ratio:1/1;
     margin-bottom:28px;
   }
-  .dial{
+
+  .gauge svg{
     width:100%;
     height:100%;
-    border-radius:50%;
-    background: conic-gradient(var(--dial-color, var(--down)) calc(var(--pct,0) * 1%), var(--track) 0);
-    transition: background 0.15s linear;
+    display:block;
   }
-  .dial-hole{
+
+  .gauge__track{
+    fill:none;
+    stroke:var(--line);
+    stroke-width:12;
+  }
+
+  .gauge__arc{
+    fill:none;
+    stroke:var(--accent);
+    stroke-width:12;
+    stroke-linecap:round;
+    stroke-dasharray:var(--circ);
+    stroke-dashoffset:var(--circ);
+    transform:rotate(-90deg);
+    transform-origin:50% 50%;
+    transition:stroke-dashoffset .5s ease;
+  }
+
+  .gauge__readout{
     position:absolute;
-    inset:26px;
-    border-radius:50%;
-    background: var(--bg-panel);
+    inset:0;
     display:flex;
     flex-direction:column;
     align-items:center;
     justify-content:center;
-    border:1px solid var(--line);
+    gap:2px;
   }
-  .dial-value{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:2.6rem;
-    font-weight:600;
+
+  .gauge__value{
+    font-family:var(--mono);
+    font-size:clamp(30px, 8vw, 40px);
+    font-weight:500;
     line-height:1;
-    font-variant-numeric: tabular-nums;
-  }
-  .dial-unit{
-    color:var(--text-dim);
-    font-size:0.8rem;
-    margin-top:6px;
-  }
-  .dial-phase{
-    margin-top:10px;
-    font-size:0.78rem;
-    padding:4px 10px;
-    border-radius:20px;
-    background: var(--down-soft);
-    color: var(--down);
-  }
-  .dial-phase[data-phase="upload"]{ background:var(--up-soft); color:var(--up); }
-
-  .start-btn{
-    font-family:'Space Grotesk', sans-serif;
-    font-weight:600;
-    font-size:1rem;
-    color:#06131D;
-    background: var(--down);
-    border:none;
-    padding:14px 34px;
-    border-radius:8px;
-    cursor:pointer;
-    letter-spacing:0.01em;
-    transition: transform 0.12s ease, opacity 0.12s ease;
-  }
-  .start-btn:hover:not(:disabled){ transform: translateY(-1px); }
-  .start-btn:active:not(:disabled){ transform: translateY(0px); }
-  .start-btn:disabled{ opacity:0.45; cursor:not-allowed; }
-  .hero-note{
-    margin-top:14px;
-    color:var(--text-dim);
-    font-size:0.82rem;
-    max-width:340px;
+    font-variant-numeric:tabular-nums;
   }
 
-  /* Stat strip */
+  .gauge__unit{
+    font-family:var(--mono);
+    font-size:13px;
+    color:var(--muted);
+  }
+
+  .gauge__label{
+    margin-top:8px;
+    font-size:12px;
+    color:var(--muted);
+  }
+
   .stats{
     display:grid;
-    grid-template-columns: repeat(4, 1fr);
-    border-top:1px solid var(--line);
-    border-bottom:1px solid var(--line);
-    margin-bottom:40px;
+    grid-template-columns:repeat(3, 1fr);
+    width:100%;
+    margin-bottom:28px;
   }
+
   .stat{
-    padding:20px 16px;
-    border-right:1px solid var(--line);
-  }
-  .stat:last-child{border-right:none;}
-  .stat-label{
-    color:var(--text-dim);
-    font-size:0.78rem;
-    margin-bottom:8px;
-  }
-  .stat-value{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:1.3rem;
-    font-weight:600;
-    font-variant-numeric: tabular-nums;
-  }
-  .stat-value small{
-    font-size:0.7rem;
-    color:var(--text-dim);
-    font-weight:400;
-    margin-left:3px;
+    text-align:center;
+    padding:0 8px;
   }
 
-  /* Provider panel */
-  .panel{
-    background:var(--bg-panel);
-    border:1px solid var(--line);
+  .stat + .stat{
+    border-left:1px solid var(--line);
+  }
+
+  .stat__value{
+    font-family:var(--mono);
+    font-size:19px;
+    font-variant-numeric:tabular-nums;
+  }
+
+  .stat__label{
+    margin-top:4px;
+    font-size:12px;
+    color:var(--muted);
+  }
+
+  button.run{
+    width:100%;
+    padding:14px 20px;
     border-radius:10px;
-    padding:22px 24px;
-    margin-bottom:20px;
-  }
-  .panel-title{
-    font-size:0.85rem;
-    color:var(--text-dim);
-    margin:0 0 16px;
-  }
-  .provider-row{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    flex-wrap:wrap;
-    gap:14px;
-  }
-  .provider-name{
-    font-size:1.25rem;
-    font-weight:600;
-    letter-spacing:-0.01em;
-  }
-  .provider-meta{
-    font-family:'IBM Plex Mono', monospace;
-    color:var(--text-dim);
-    font-size:0.82rem;
-  }
-  .provider-loading{ color:var(--text-dim); font-size:0.9rem; }
-  .provider-error{ color:var(--danger); font-size:0.9rem; }
-
-  /* Security note */
-  .security{
-    display:flex;
-    gap:14px;
-    align-items:flex-start;
-    padding:18px 20px;
-    border:1px solid var(--line);
-    border-radius:10px;
-    background: rgba(99,230,160,0.04);
-  }
-  .security svg{ flex-shrink:0; margin-top:2px; }
-  .security h3{
-    margin:0 0 6px;
-    font-size:0.92rem;
-    font-weight:600;
-  }
-  .security p{
-    margin:0;
-    color:var(--text-dim);
-    font-size:0.84rem;
-    line-height:1.55;
-    max-width:60ch;
+    border:1px solid var(--accent);
+    background:transparent;
+    color:var(--accent);
+    font-family:var(--sans);
+    font-size:15px;
+    font-weight:500;
+    cursor:pointer;
+    transition:background .2s ease, color .2s ease;
   }
 
-  footer{
-    margin-top:40px;
-    color:var(--text-dim);
-    font-size:0.78rem;
+  button.run:hover:not(:disabled){
+    background:var(--accent-soft);
+  }
+
+  button.run:focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:3px;
+  }
+
+  button.run:disabled{
+    opacity:.55;
+    cursor:not-allowed;
+  }
+
+  .status{
+    margin-top:16px;
+    min-height:18px;
+    font-size:13px;
+    color:var(--muted);
     text-align:center;
   }
 
-  @media (max-width:640px){
-    .wrap{padding:24px 16px 48px;}
-    header{margin-bottom:36px;}
-    .dial-shell{width:220px;height:220px;}
-    .dial-value{font-size:2rem;}
-    .stats{grid-template-columns: 1fr 1fr;}
-    .stat:nth-child(2){border-right:none;}
-    .stat:nth-child(3),.stat:nth-child(4){border-top:1px solid var(--line);}
+  footer{
+    margin-top:28px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+    font-size:12px;
+    line-height:1.6;
+    color:var(--muted);
+    text-align:center;
   }
+
   @media (prefers-reduced-motion: reduce){
-    .dial, .start-btn{transition:none;}
+    .gauge__arc, .isp__name{ transition:none; }
   }
 </style>
 </head>
 <body>
-<div class="wrap">
+
+<div class="page">
 
   <header>
-    <div class="brand">
-      <span class="brand-mark" aria-hidden="true"></span>
-      <span class="brand-name">Denyut</span>
-      <span class="brand-tag">uji kecepatan internet</span>
+    <div class="brand">Speedtest</div>
+    <div class="isp">
+      <span class="isp__dot" id="ispDot" data-state="loading"></span>
+      <span class="isp__name" id="ispName">Mendeteksi penyedia layanan…</span>
     </div>
-    <div class="status-pill" id="statusPill"><span class="dot" aria-hidden="true"></span><span id="statusText">Siap</span></div>
   </header>
 
-  <section class="hero">
-    <div class="dial-shell">
-      <div class="dial" id="dial" style="--pct:0;">
-        <div class="dial-hole">
-          <div class="dial-value" id="dialValue">0.0</div>
-          <div class="dial-unit">Mbps</div>
-          <div class="dial-phase" id="dialPhase" data-phase="idle">Menunggu</div>
-        </div>
+  <main>
+    <div class="gauge">
+      <svg viewBox="0 0 240 240">
+        <circle class="gauge__track" cx="120" cy="120" r="100"></circle>
+        <circle class="gauge__arc" id="gaugeArc" cx="120" cy="120" r="100"></circle>
+      </svg>
+      <div class="gauge__readout">
+        <span class="gauge__value" id="gaugeValue">--</span>
+        <span class="gauge__unit" id="gaugeUnit">Mbps</span>
+        <span class="gauge__label" id="gaugeLabel">Menunggu</span>
       </div>
     </div>
-    <button class="start-btn" id="startBtn">Mulai Uji Kecepatan</button>
-    <p class="hero-note">Pengujian berjalan langsung dari perangkat Anda ke server uji — tidak ada data yang disimpan di mana pun.</p>
-  </section>
 
-  <section class="stats" aria-label="Hasil pengujian">
-    <div class="stat">
-      <div class="stat-label">Unduh</div>
-      <div class="stat-value" id="statDown">—<small>Mbps</small></div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">Unggah</div>
-      <div class="stat-value" id="statUp">—<small>Mbps</small></div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">Ping</div>
-      <div class="stat-value" id="statPing">—<small>ms</small></div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">Jitter</div>
-      <div class="stat-value" id="statJitter">—<small>ms</small></div>
-    </div>
-  </section>
-
-  <section class="panel" aria-label="Penyedia layanan internet">
-    <p class="panel-title">Penyedia layanan Anda</p>
-    <div class="provider-row" id="providerRow">
-      <div>
-        <div class="provider-loading" id="providerStatus">Mendeteksi penyedia…</div>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat__value" id="statPing">--</div>
+        <div class="stat__label">Ping</div>
+      </div>
+      <div class="stat">
+        <div class="stat__value" id="statDown">--</div>
+        <div class="stat__label">Unduh</div>
+      </div>
+      <div class="stat">
+        <div class="stat__value" id="statUp">--</div>
+        <div class="stat__label">Unggah</div>
       </div>
     </div>
-  </section>
 
-  <section class="security">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#63E6A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-    <div>
-      <h3>Dibangun dengan keamanan sebagai dasar</h3>
-      <p>Halaman ini murni berjalan di peramban Anda — tidak ada server backend yang menyimpan data, sehingga tidak ada basis data atau server untuk diserang. Semua permintaan jaringan dibatasi lewat Content-Security-Policy ke domain uji tepercaya lewat HTTPS, teks dari luar (nama penyedia, lokasi) dirender sebagai teks biasa tanpa pernah dieksekusi sebagai kode, setiap permintaan punya waktu habis otomatis, dan tombol uji dikunci selama pengujian berjalan agar tidak ada permintaan ganda yang menumpuk.</p>
-    </div>
-  </section>
+    <button type="button" class="run" id="runBtn">Mulai pengujian</button>
+    <div class="status" id="statusLine" role="status" aria-live="polite">Siap menguji koneksi Anda.</div>
+  </main>
 
-  <footer>Denyut tidak menyimpan riwayat pengujian atau alamat IP Anda di server mana pun.</footer>
+  <footer>
+    Pengujian berjalan sepenuhnya di peramban Anda melalui jaringan Cloudflare.
+    Alamat IP tidak pernah ditampilkan maupun disimpan — hanya nama penyedia layanan yang ditampilkan.
+  </footer>
+
 </div>
 
-<script>
-(function(){
-  'use strict';
+<script type="module">
+  const CIRC = 628.3185;
 
-  const CF_DOWN = 'https://speed.cloudflare.com/__down';
-  const CF_UP = 'https://speed.cloudflare.com/__up';
-  const ISP_API = 'https://ipapi.co/json/';
-  const REQUEST_TIMEOUT_MS = 15000;
+  const el = {
+    ispDot: document.getElementById('ispDot'),
+    ispName: document.getElementById('ispName'),
+    gaugeArc: document.getElementById('gaugeArc'),
+    gaugeValue: document.getElementById('gaugeValue'),
+    gaugeUnit: document.getElementById('gaugeUnit'),
+    gaugeLabel: document.getElementById('gaugeLabel'),
+    statPing: document.getElementById('statPing'),
+    statDown: document.getElementById('statDown'),
+    statUp: document.getElementById('statUp'),
+    runBtn: document.getElementById('runBtn'),
+    statusLine: document.getElementById('statusLine'),
+  };
 
-  const dial = document.getElementById('dial');
-  const dialValue = document.getElementById('dialValue');
-  const dialPhase = document.getElementById('dialPhase');
-  const startBtn = document.getElementById('startBtn');
-  const statusText = document.getElementById('statusText');
-  const statDown = document.getElementById('statDown');
-  const statUp = document.getElementById('statUp');
-  const statPing = document.getElementById('statPing');
-  const statJitter = document.getElementById('statJitter');
-  const providerRow = document.getElementById('providerRow');
+  const PHASE_TEXT = {
+    idle: 'Siap menguji koneksi Anda.',
+    latency: 'Mengukur latensi…',
+    download: 'Mengukur kecepatan unduh…',
+    upload: 'Mengukur kecepatan unggah…',
+    done: 'Pengujian selesai.',
+    error: 'Pengujian gagal. Periksa koneksi lalu coba lagi.',
+  };
 
-  let isTesting = false;
-  let maxScale = 100; // Mbps, grows dynamically if speed exceeds it
+  const GAUGE_LABEL = {
+    idle: 'Menunggu',
+    latency: 'Latensi',
+    download: 'Unduh',
+    upload: 'Unggah',
+  };
 
-  function setDial(mbps, phase){
-    if(mbps > maxScale) maxScale = mbps * 1.15;
-    const pct = Math.max(0, Math.min(100, (mbps / maxScale) * 100));
-    dial.style.setProperty('--pct', pct.toFixed(2));
-    dial.style.setProperty('--dial-color', phase === 'upload' ? 'var(--up)' : 'var(--down)');
-    dialValue.textContent = mbps.toFixed(1);
+  function setStatus(phase){
+    el.statusLine.textContent = PHASE_TEXT[phase] || '';
   }
 
-  function setPhase(label, key){
-    dialPhase.textContent = label;
-    dialPhase.setAttribute('data-phase', key);
+  function setGauge(kind, value){
+    const max = kind === 'latency' ? 200 : 1000;
+    const frac = Math.max(0, Math.min(1, value / max));
+    el.gaugeArc.style.strokeDashoffset = String(CIRC * (1 - frac));
+    el.gaugeValue.textContent = kind === 'latency'
+      ? Math.round(value).toString()
+      : (value < 10 ? value.toFixed(2) : value.toFixed(1));
+    el.gaugeUnit.textContent = kind === 'latency' ? 'ms' : 'Mbps';
+    el.gaugeLabel.textContent = GAUGE_LABEL[kind] || '';
   }
 
-  function fmt(n, digits){
-    if(n === null || n === undefined || Number.isNaN(n)) return '—';
-    return n.toFixed(digits === undefined ? 1 : digits);
+  function resetGauge(){
+    el.gaugeArc.style.strokeDashoffset = String(CIRC);
+    el.gaugeValue.textContent = '--';
+    el.gaugeUnit.textContent = 'Mbps';
+    el.gaugeLabel.textContent = GAUGE_LABEL.idle;
   }
 
-  function withTimeout(signal, ms){
-    const controller = new AbortController();
-    const onAbort = () => controller.abort();
-    if(signal){ signal.addEventListener('abort', onAbort); }
-    const timer = setTimeout(() => controller.abort(), ms);
-    return {
-      signal: controller.signal,
-      clear: () => { clearTimeout(timer); if(signal) signal.removeEventListener('abort', onAbort); }
-    };
+  function fmtMs(ms){
+    return Math.round(ms) + ' ms';
   }
 
-  async function testPing(outerSignal){
-    const samples = [];
-    for(let i = 0; i < 6; i++){
-      const t = withTimeout(outerSignal, 5000);
-      const t0 = performance.now();
-      try{
-        await fetch(`${CF_DOWN}?bytes=0&r=${Date.now()}-${i}`, { signal: t.signal, cache: 'no-store', mode: 'cors' });
-        samples.push(performance.now() - t0);
-      } finally {
-        t.clear();
-      }
-    }
-    samples.sort((a,b) => a - b);
-    const median = samples[Math.floor(samples.length / 2)];
-    let jitterSum = 0;
-    for(let i = 1; i < samples.length; i++){ jitterSum += Math.abs(samples[i] - samples[i-1]); }
-    const jitter = samples.length > 1 ? jitterSum / (samples.length - 1) : 0;
-    return { ping: median, jitter };
+  function fmtMbps(bps){
+    const mbps = bps / 1e6;
+    return (mbps < 10 ? mbps.toFixed(2) : mbps.toFixed(1)) + ' Mbps';
   }
 
-  async function testDownload(outerSignal, onProgress){
-    const bytes = 30 * 1000 * 1000;
-    const t = withTimeout(outerSignal, REQUEST_TIMEOUT_MS);
+  // --- Provider detection (name only, IP is fetched but never read or shown) ---
+  async function detectProvider(){
     try{
-      const start = performance.now();
-      const res = await fetch(`${CF_DOWN}?bytes=${bytes}`, { signal: t.signal, cache: 'no-store', mode: 'cors' });
-      if(!res.ok || !res.body) throw new Error('Server uji tidak merespons');
-      const reader = res.body.getReader();
-      let received = 0, lastTime = start, lastBytes = 0;
-      while(true){
-        const { done, value } = await reader.read();
-        if(done) break;
-        received += value.length;
-        const now = performance.now();
-        if(now - lastTime > 150){
-          const mbps = ((received - lastBytes) * 8) / ((now - lastTime) / 1000) / 1e6;
-          onProgress(mbps);
-          lastTime = now; lastBytes = received;
-        }
-      }
-      const totalSec = (performance.now() - start) / 1000;
-      return (received * 8) / totalSec / 1e6;
-    } finally {
-      t.clear();
-    }
-  }
-
-  function testUpload(outerSignal, onProgress){
-    return new Promise((resolve, reject) => {
-      const size = 12 * 1000 * 1000;
-      const data = new Uint8Array(size);
-      const xhr = new XMLHttpRequest();
-      const cleanup = () => { if(outerSignal) outerSignal.removeEventListener('abort', onAbort); };
-      const onAbort = () => { xhr.abort(); };
-      if(outerSignal) outerSignal.addEventListener('abort', onAbort);
-
-      xhr.open('POST', CF_UP, true);
-      xhr.timeout = REQUEST_TIMEOUT_MS;
-      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
-      const start = performance.now();
-      xhr.upload.onprogress = (e) => {
-        if(e.lengthComputable){
-          const elapsed = (performance.now() - start) / 1000;
-          if(elapsed > 0){ onProgress((e.loaded * 8) / elapsed / 1e6); }
-        }
-      };
-      xhr.onload = () => {
-        cleanup();
-        if(xhr.status >= 200 && xhr.status < 300){
-          const totalSec = (performance.now() - start) / 1000;
-          resolve((size * 8) / totalSec / 1e6);
-        } else {
-          reject(new Error('Unggah gagal (' + xhr.status + ')'));
-        }
-      };
-      xhr.onerror = () => { cleanup(); reject(new Error('Unggah gagal')); };
-      xhr.ontimeout = () => { cleanup(); reject(new Error('Waktu unggah habis')); };
-      xhr.onabort = () => { cleanup(); reject(new Error('Unggah dibatalkan')); };
-      xhr.send(data);
-    });
-  }
-
-  async function loadProvider(outerSignal){
-    const t = withTimeout(outerSignal, 8000);
-    try{
-      const res = await fetch(ISP_API, { signal: t.signal, mode: 'cors' });
-      if(!res.ok) throw new Error('bad status');
+      const res = await fetch('https://ipwho.is/', { cache: 'no-store' });
+      if(!res.ok) throw new Error('lookup failed');
       const data = await res.json();
-      renderProvider(data);
-    } catch(err){
-      renderProviderError();
-    } finally {
-      t.clear();
+      if(!data || data.success === false) throw new Error('lookup failed');
+      const isp = (data.connection && (data.connection.isp || data.connection.org)) || null;
+      if(!isp) throw new Error('no isp field');
+      el.ispName.textContent = String(isp);
+      el.ispDot.dataset.state = 'ok';
+    } catch(e){
+      el.ispName.textContent = 'Penyedia layanan tidak terdeteksi';
+      el.ispDot.dataset.state = 'error';
     }
   }
+  detectProvider();
 
-  function renderProvider(data){
-    providerRow.innerHTML = '';
-    const left = document.createElement('div');
-    const name = document.createElement('div');
-    name.className = 'provider-name';
-    name.textContent = (data && data.org) ? String(data.org) : 'Tidak diketahui';
-    const meta = document.createElement('div');
-    meta.className = 'provider-meta';
-    const parts = [];
-    if(data && data.ip) parts.push(String(data.ip));
-    if(data && data.city) parts.push(String(data.city));
-    if(data && data.country_name) parts.push(String(data.country_name));
-    meta.textContent = parts.join('  ·  ');
-    left.appendChild(name);
-    left.appendChild(meta);
-    providerRow.appendChild(left);
+  // --- Speed test engine (Cloudflare's public measurement endpoints) ---
+  let enginePromise = null;
+  function loadEngine(){
+    if(!enginePromise){
+      enginePromise = import('https://cdn.skypack.dev/@cloudflare/speedtest')
+        .then((m) => m.default)
+        .catch((err) => { enginePromise = null; throw err; });
+    }
+    return enginePromise;
   }
 
-  function renderProviderError(){
-    providerRow.innerHTML = '';
-    const div = document.createElement('div');
-    div.className = 'provider-error';
-    div.textContent = 'Tidak dapat mendeteksi penyedia saat ini. Coba muat ulang halaman.';
-    providerRow.appendChild(div);
-  }
+  let hasRunOnce = false;
 
   async function runTest(){
-    if(isTesting) return;
-    isTesting = true;
-    startBtn.disabled = true;
-    startBtn.textContent = 'Sedang menguji…';
-    statusText.textContent = 'Menguji';
-    statDown.innerHTML = '—<small>Mbps</small>';
-    statUp.innerHTML = '—<small>Mbps</small>';
-    statPing.innerHTML = '—<small>ms</small>';
-    statJitter.innerHTML = '—<small>ms</small>';
-    maxScale = 100;
-    setDial(0, 'download');
+    el.runBtn.disabled = true;
+    resetGauge();
+    el.statPing.textContent = '--';
+    el.statDown.textContent = '--';
+    el.statUp.textContent = '--';
+    setStatus('latency');
 
-    const controller = new AbortController();
-
+    let SpeedTest;
     try{
-      setPhase('Mengukur ping', 'idle');
-      const { ping, jitter } = await testPing(controller.signal);
-      statPing.innerHTML = fmt(ping, 0) + '<small>ms</small>';
-      statJitter.innerHTML = fmt(jitter, 1) + '<small>ms</small>';
-
-      setPhase('Mengunduh', 'download');
-      const downResult = await testDownload(controller.signal, (mbps) => setDial(mbps, 'download'));
-      statDown.innerHTML = fmt(downResult, 1) + '<small>Mbps</small>';
-      setDial(downResult, 'download');
-
-      setPhase('Mengunggah', 'upload');
-      maxScale = Math.max(100, downResult * 0.6);
-      setDial(0, 'upload');
-      const upResult = await testUpload(controller.signal, (mbps) => setDial(mbps, 'upload'));
-      statUp.innerHTML = fmt(upResult, 1) + '<small>Mbps</small>';
-      setDial(upResult, 'upload');
-
-      setPhase('Selesai', 'done');
-      statusText.textContent = 'Selesai';
-    } catch(err){
-      setPhase('Gagal', 'idle');
-      statusText.textContent = 'Gagal — coba lagi';
-    } finally {
-      isTesting = false;
-      startBtn.disabled = false;
-      startBtn.textContent = 'Uji Ulang';
+      SpeedTest = await loadEngine();
+    } catch(e){
+      setStatus('error');
+      el.runBtn.disabled = false;
+      return;
     }
+
+    const engine = new SpeedTest({ autoStart: false });
+
+    engine.onResultsChange = ({ type }) => {
+      const r = engine.results;
+      if(type === 'latency'){
+        setStatus('latency');
+        const ms = r.getUnloadedLatency && r.getUnloadedLatency();
+        if(typeof ms === 'number' && !Number.isNaN(ms)){
+          setGauge('latency', ms);
+          el.statPing.textContent = fmtMs(ms);
+        }
+      } else if(type === 'download'){
+        setStatus('download');
+        const bps = r.getDownloadBandwidth && r.getDownloadBandwidth();
+        if(typeof bps === 'number' && !Number.isNaN(bps)){
+          setGauge('download', bps / 1e6);
+          el.statDown.textContent = fmtMbps(bps);
+        }
+      } else if(type === 'upload'){
+        setStatus('upload');
+        const bps = r.getUploadBandwidth && r.getUploadBandwidth();
+        if(typeof bps === 'number' && !Number.isNaN(bps)){
+          setGauge('upload', bps / 1e6);
+          el.statUp.textContent = fmtMbps(bps);
+        }
+      }
+    };
+
+    engine.onFinish = (results) => {
+      const summary = results.getSummary();
+      if(typeof summary.latency === 'number') el.statPing.textContent = fmtMs(summary.latency);
+      if(typeof summary.download === 'number') el.statDown.textContent = fmtMbps(summary.download);
+      if(typeof summary.upload === 'number') el.statUp.textContent = fmtMbps(summary.upload);
+      setStatus('done');
+      hasRunOnce = true;
+      el.runBtn.textContent = 'Uji lagi';
+      el.runBtn.disabled = false;
+    };
+
+    engine.onError = () => {
+      setStatus('error');
+      el.runBtn.disabled = false;
+    };
+
+    engine.play();
   }
 
-  startBtn.addEventListener('click', runTest);
-
-  const providerController = new AbortController();
-  loadProvider(providerController.signal);
-})();
+  el.runBtn.addEventListener('click', runTest);
 </script>
+
 </body>
 </html>
