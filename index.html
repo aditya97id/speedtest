@@ -4,151 +4,205 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Speedtest</title>
-<meta name="description" content="Tes kecepatan internet: ping, unduh, dan unggah — diproses langsung di peramban Anda.">
+<meta name="description" content="Tes kecepatan internet: ping, unduh, dan unggah — diproses langsung di peramban Anda, tanpa menampilkan atau menyimpan alamat IP.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#EDEFEC;
-    --panel-bg:#F8F9F6;
-    --ink:#14181B;
-    --muted:#5B6560;
-    --accent:#1856F2;
-    --warn:#B4791F;
-    --line:rgba(20,24,27,0.14);
+    --bg:#0B0F1A;
+    --bg-2:#0E1626;
+    --panel:#111A2C;
+    --panel-line:rgba(234,240,255,0.08);
+    --ink:#EAF0FF;
+    --muted:#7C88A6;
+    --muted-dim:#4E5872;
+    --accent:#31D8C4;
+    --accent-2:#4C7DFF;
+    --warn:#FF6B5B;
+    --track:rgba(234,240,255,0.08);
   }
   *{ box-sizing:border-box; }
   html,body{ height:100%; }
   body{
     margin:0;
-    background:var(--bg);
+    background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(76,125,255,0.14), transparent 60%),
+      radial-gradient(900px 500px at 100% 110%, rgba(49,216,196,0.10), transparent 55%),
+      var(--bg);
     color:var(--ink);
-    font-family:'IBM Plex Sans', sans-serif;
+    font-family:'Inter', sans-serif;
     display:flex;
     align-items:center;
     justify-content:center;
     padding:28px 16px;
+    min-height:100%;
   }
-  main.panel{
+  main.card{
     width:100%;
-    max-width:620px;
-    background:var(--panel-bg);
-    border:1px solid var(--line);
-    border-radius:6px;
-    padding:clamp(28px,5vw,48px);
+    max-width:520px;
+    background:linear-gradient(180deg, var(--panel), var(--bg-2));
+    border:1px solid var(--panel-line);
+    border-radius:20px;
+    padding:clamp(24px,5vw,40px);
+    box-shadow:0 40px 80px -30px rgba(0,0,0,0.6);
   }
-  header.plate{
-    border-bottom:1px solid var(--line);
-    padding-bottom:18px;
-    margin-bottom:32px;
+
+  header.top{
     display:flex;
-    align-items:baseline;
+    align-items:center;
     justify-content:space-between;
+    gap:10px;
+    margin-bottom:22px;
     flex-wrap:wrap;
-    gap:6px;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:9px;
+  }
+  .brand-dot{
+    width:9px; height:9px; border-radius:50%;
+    background:linear-gradient(135deg, var(--accent), var(--accent-2));
+    box-shadow:0 0 0 4px rgba(49,216,196,0.12);
   }
   h1{
-    font-family:'IBM Plex Mono', monospace;
+    font-family:'Space Grotesk', sans-serif;
     font-weight:600;
-    font-size:clamp(24px,4vw,30px);
+    font-size:19px;
     margin:0;
     letter-spacing:-0.01em;
   }
-  .provider{
-    font-size:13px;
+  .provider-badge{
+    font-size:12.5px;
     color:var(--muted);
-    margin:0;
-    text-align:right;
+    background:rgba(234,240,255,0.05);
+    border:1px solid var(--panel-line);
+    padding:6px 11px;
+    border-radius:100px;
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
   }
-  .readout-wrap{ text-align:center; margin-bottom:34px; }
-  .readout{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:clamp(46px,11vw,68px);
-    font-weight:500;
+
+  .gauge-wrap{
+    position:relative;
+    width:min(280px, 72vw);
+    margin:6px auto 6px;
+    aspect-ratio:1/1;
+  }
+  .gauge-wrap svg{ width:100%; height:100%; display:block; }
+  .gauge-center{
+    position:absolute;
+    inset:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding-bottom:6%;
+  }
+  .gauge-value{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:clamp(38px,10vw,52px);
     line-height:1;
     font-variant-numeric:tabular-nums;
+    background:linear-gradient(135deg, #fff, #C9D4F5);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
   }
-  .readout .unit{
-    font-size:0.32em;
+  .gauge-unit{
+    font-size:13px;
     color:var(--muted);
-    margin-left:8px;
+    margin-top:6px;
+    letter-spacing:0.02em;
   }
   .phase-label{
-    font-size:13px;
+    text-align:center;
+    font-size:13.5px;
     color:var(--muted);
-    margin:8px 0 0;
+    margin:2px 0 26px;
     min-height:18px;
   }
-  .progress-track{
-    height:3px;
-    background:var(--line);
-    border-radius:2px;
-    margin-top:18px;
-    overflow:hidden;
+  .phase-label.error{ color:var(--warn); }
+
+  .tiles{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:10px;
+    margin-bottom:22px;
   }
-  .progress-fill{
-    height:100%;
-    width:0%;
-    background:var(--accent);
-    transition:width .12s linear;
-  }
-  .steps{
-    display:flex;
-    gap:12px;
-    margin-bottom:32px;
-  }
-  .step{
-    flex:1;
+  .tile{
+    border:1px solid var(--panel-line);
+    border-radius:12px;
+    padding:13px 8px;
     text-align:center;
-    padding:14px 8px;
-    border:1px solid var(--line);
-    border-radius:4px;
-    opacity:.5;
-    transition:opacity .3s ease, border-color .3s ease;
+    background:rgba(234,240,255,0.02);
+    transition:border-color .3s ease, background .3s ease, opacity .3s ease;
+    opacity:.55;
   }
-  .step.active{ opacity:1; border-color:var(--accent); }
-  .step.done{ opacity:1; }
-  .step.error{ opacity:1; border-color:var(--warn); }
-  .step-label{
-    display:block;
-    font-size:13px;
+  .tile.active{
+    opacity:1;
+    border-color:var(--accent);
+    background:rgba(49,216,196,0.06);
+  }
+  .tile.done{ opacity:1; }
+  .tile.error{ opacity:1; border-color:var(--warn); background:rgba(255,107,91,0.06); }
+  .tile-icon{
+    width:18px; height:18px;
+    margin:0 auto 8px;
     color:var(--muted);
-    margin-bottom:6px;
-  }
-  .step-value{
     display:block;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:18px;
-    font-weight:500;
+  }
+  .tile.active .tile-icon, .tile.done .tile-icon{ color:var(--accent); }
+  .tile.error .tile-icon{ color:var(--warn); }
+  .tile-label{
+    display:block;
+    font-size:11.5px;
+    color:var(--muted);
+    margin-bottom:5px;
+  }
+  .tile-value{
+    display:block;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size:16px;
     font-variant-numeric:tabular-nums;
   }
+
   .start-btn{
     display:block;
     width:100%;
-    padding:14px;
-    background:var(--ink);
-    color:#fff;
+    padding:15px;
+    background:linear-gradient(135deg, var(--accent), var(--accent-2));
+    color:#04120F;
     border:none;
-    border-radius:4px;
-    font-family:'IBM Plex Sans', sans-serif;
+    border-radius:12px;
+    font-family:'Inter', sans-serif;
     font-size:15px;
-    font-weight:500;
+    font-weight:700;
     cursor:pointer;
+    letter-spacing:0.01em;
   }
-  .start-btn:hover:not(:disabled){ background:var(--accent); }
-  .start-btn:disabled{ opacity:.55; cursor:not-allowed; }
+  .start-btn:hover:not(:disabled){ filter:brightness(1.06); }
+  .start-btn:active:not(:disabled){ filter:brightness(0.96); }
+  .start-btn:disabled{ opacity:.5; cursor:not-allowed; filter:none; }
+
   .note{
     text-align:center;
-    font-size:12px;
-    color:var(--muted);
+    font-size:11.5px;
+    color:var(--muted-dim);
     margin:16px 0 0;
-    line-height:1.5;
+    line-height:1.55;
   }
-  @media (max-width:480px){
-    .steps{ flex-direction:column; }
-    header.plate{ flex-direction:column; align-items:flex-start; }
-    .provider{ text-align:left; }
+
+  @media (max-width:420px){
+    header.top{ flex-direction:column; align-items:flex-start; }
+    .tile-label{ font-size:10.5px; }
+    .tile-value{ font-size:14px; }
   }
   @media (prefers-reduced-motion:reduce){
     *{ transition:none !important; animation:none !important; }
@@ -157,30 +211,52 @@
 </style>
 </head>
 <body>
-<main class="panel">
-  <header class="plate">
-    <h1>Speedtest</h1>
-    <p class="provider" id="provider">Mendeteksi penyedia layanan…</p>
+<main class="card">
+  <header class="top">
+    <div class="brand">
+      <span class="brand-dot" aria-hidden="true"></span>
+      <h1>Speedtest</h1>
+    </div>
+    <span class="provider-badge" id="provider">Mendeteksi penyedia layanan…</span>
   </header>
 
-  <div class="readout-wrap">
-    <div class="readout"><span id="readoutValue">0</span><span class="unit" id="readoutUnit">ms</span></div>
-    <p class="phase-label" id="phaseLabel">Siap memulai</p>
-    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="gauge-wrap">
+    <svg viewBox="0 0 240 240" aria-hidden="true">
+      <path id="arcTrack" d="M54.95 185.05 A92 92 0 1 1 185.05 185.05" fill="none" stroke="var(--track)" stroke-width="14" stroke-linecap="round"/>
+      <path id="arcFill" d="M54.95 185.05 A92 92 0 1 1 185.05 185.05" fill="none" stroke="url(#gaugeGrad)" stroke-width="14" stroke-linecap="round"/>
+      <defs>
+        <linearGradient id="gaugeGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#31D8C4"/>
+          <stop offset="100%" stop-color="#4C7DFF"/>
+        </linearGradient>
+      </defs>
+      <g id="needle">
+        <line x1="120" y1="120" x2="120" y2="42" stroke="#EAF0FF" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="120" cy="120" r="7" fill="#EAF0FF"/>
+      </g>
+    </svg>
+    <div class="gauge-center">
+      <div class="gauge-value" id="readoutValue">0</div>
+      <div class="gauge-unit" id="readoutUnit">Mbps</div>
+    </div>
   </div>
+  <p class="phase-label" id="phaseLabel">Siap memulai</p>
 
-  <div class="steps" id="steps">
-    <div class="step" data-step="ping">
-      <span class="step-label">Ping</span>
-      <span class="step-value" id="val-ping">—</span>
+  <div class="tiles" id="tiles">
+    <div class="tile" data-step="ping">
+      <svg class="tile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/><path d="M12 12l3-2"/></svg>
+      <span class="tile-label">Ping</span>
+      <span class="tile-value" id="val-ping">—</span>
     </div>
-    <div class="step" data-step="download">
-      <span class="step-label">Unduh</span>
-      <span class="step-value" id="val-download">—</span>
+    <div class="tile" data-step="download">
+      <svg class="tile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M6 11l6 6 6-6"/><path d="M4 21h16"/></svg>
+      <span class="tile-label">Unduh</span>
+      <span class="tile-value" id="val-download">—</span>
     </div>
-    <div class="step" data-step="upload">
-      <span class="step-label">Unggah</span>
-      <span class="step-value" id="val-upload">—</span>
+    <div class="tile" data-step="upload">
+      <svg class="tile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M18 13l-6-6-6 6"/><path d="M4 21h16"/></svg>
+      <span class="tile-label">Unggah</span>
+      <span class="tile-value" id="val-upload">—</span>
     </div>
   </div>
 
@@ -195,12 +271,13 @@
     readoutValue: document.getElementById('readoutValue'),
     readoutUnit: document.getElementById('readoutUnit'),
     phaseLabel: document.getElementById('phaseLabel'),
-    progressFill: document.getElementById('progressFill'),
+    arcFill: document.getElementById('arcFill'),
+    needle: document.getElementById('needle'),
     startBtn: document.getElementById('startBtn'),
-    steps: {
-      ping: document.querySelector('.step[data-step="ping"]'),
-      download: document.querySelector('.step[data-step="download"]'),
-      upload: document.querySelector('.step[data-step="upload"]'),
+    tiles: {
+      ping: document.querySelector('.tile[data-step="ping"]'),
+      download: document.querySelector('.tile[data-step="download"]'),
+      upload: document.querySelector('.tile[data-step="upload"]'),
     },
     vals: {
       ping: document.getElementById('val-ping'),
@@ -212,36 +289,82 @@
   const DOWN_URL = (bytes) => `https://speed.cloudflare.com/__down?bytes=${bytes}&x=${Date.now()}-${Math.random()}`;
   const UP_URL = 'https://speed.cloudflare.com/__up';
 
-  function setReadout(value, unit){
-    els.readoutValue.textContent = value;
+  const ARC_LEN = els.arcFill.getTotalLength();
+  els.arcFill.style.strokeDasharray = ARC_LEN;
+  els.arcFill.style.strokeDashoffset = ARC_LEN;
+
+  const GAUGE = {
+    ping: { max: 300 },   // ms
+    mbps: { max: 600 },   // Mbps (sqrt scaled)
+  };
+
+  function clamp01(v){ return Math.max(0, Math.min(1, v)); }
+
+  function fracForPing(ms){ return clamp01(ms / GAUGE.ping.max); }
+  function fracForMbps(v){ return clamp01(Math.sqrt(Math.min(v, GAUGE.mbps.max) / GAUGE.mbps.max)); }
+
+  function renderGauge(frac){
+    frac = clamp01(frac);
+    els.arcFill.style.strokeDashoffset = ARC_LEN * (1 - frac);
+    const angle = -135 + frac * 270;
+    els.needle.setAttribute('transform', `rotate(${angle} 120 120)`);
+  }
+
+  // ---- Smooth animated readout ----
+  let animId = null;
+  let displayVal = 0;
+  let targetVal = 0;
+  let fracFn = fracForMbps;
+
+  function startAnim(){
+    stopAnim();
+    function tick(){
+      displayVal += (targetVal - displayVal) * 0.18;
+      if(Math.abs(targetVal - displayVal) < 0.05) displayVal = targetVal;
+      renderReadout(displayVal);
+      animId = requestAnimationFrame(tick);
+    }
+    animId = requestAnimationFrame(tick);
+  }
+  function stopAnim(){
+    if(animId) cancelAnimationFrame(animId);
+    animId = null;
+  }
+  function renderReadout(v){
+    els.readoutValue.textContent = fmtValue(v);
+    renderGauge(fracFn(v));
+  }
+  function fmtValue(v){
+    if(els.readoutUnit.textContent === 'ms') return Math.round(v).toString();
+    return v >= 100 ? v.toFixed(0) : v.toFixed(1);
+  }
+  function setTarget(v){ targetVal = v; }
+  function snapTo(v){ targetVal = v; displayVal = v; renderReadout(v); }
+
+  function setUnit(unit){
     els.readoutUnit.textContent = unit;
+    fracFn = unit === 'ms' ? fracForPing : fracForMbps;
   }
 
-  function setProgress(fraction){
-    els.progressFill.style.width = Math.max(0, Math.min(1, fraction)) * 100 + '%';
-  }
-
-  function setActiveStep(name){
-    Object.entries(els.steps).forEach(([key, node]) => {
+  function setActiveTile(name){
+    Object.entries(els.tiles).forEach(([key, node]) => {
       node.classList.toggle('active', key === name);
     });
   }
-
   function markDone(name, text){
-    const node = els.steps[name];
+    const node = els.tiles[name];
     node.classList.remove('active');
     node.classList.add('done');
     els.vals[name].textContent = text;
   }
-
   function markError(name){
-    const node = els.steps[name];
+    const node = els.tiles[name];
     node.classList.remove('active');
     node.classList.add('error');
     els.vals[name].textContent = 'Gagal';
   }
 
-  // ---- Provider detection (name only, no IP shown) ----
+  // ---- Provider detection (name only, IP never read or shown) ----
   async function loadProvider(){
     try{
       const res = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
@@ -264,9 +387,10 @@
         continue;
       }
       const rtt = performance.now() - t0;
-      if(i > 0) samples.push(rtt); // first request warms up the connection
-      setReadout(Math.round(rtt), 'ms');
-      setProgress((i + 1) / count);
+      if(i > 0){
+        samples.push(rtt);
+        setTarget(rtt);
+      }
     }
     if(samples.length === 0) throw new Error('ping failed');
     samples.sort((a,b) => a - b);
@@ -284,7 +408,7 @@
         const elapsed = (performance.now() - start) / 1000;
         if(elapsed > 0.05 && e.loaded > 0){
           const mbps = (e.loaded * 8) / elapsed / 1_000_000;
-          onProgress(mbps, e.loaded / bytes);
+          onProgress(mbps);
         }
       };
       xhr.onload = () => {
@@ -317,7 +441,7 @@
         const elapsed = (performance.now() - start) / 1000;
         if(elapsed > 0.05 && e.loaded > 0){
           const mbps = (e.loaded * 8) / elapsed / 1_000_000;
-          onProgress(mbps, e.loaded / bytes);
+          onProgress(mbps);
         }
       };
       xhr.onload = () => {
@@ -336,61 +460,72 @@
   async function runTest(){
     els.startBtn.disabled = true;
     els.startBtn.textContent = 'Sedang menguji…';
-    Object.values(els.steps).forEach(s => s.classList.remove('active','done','error'));
+    Object.values(els.tiles).forEach(t => t.classList.remove('active','done','error'));
     Object.values(els.vals).forEach(v => v.textContent = '—');
-    setProgress(0);
+    els.phaseLabel.classList.remove('error');
+    startAnim();
 
     // Ping
     els.phaseLabel.textContent = 'Mengukur ping';
-    setActiveStep('ping');
-    setReadout('0', 'ms');
+    setActiveTile('ping');
+    setUnit('ms');
+    snapTo(0);
     try{
       const ping = await measurePing(6);
       markDone('ping', Math.round(ping) + ' ms');
+      snapTo(ping);
     }catch(e){
       markError('ping');
+      els.phaseLabel.textContent = 'Ping gagal';
+      els.phaseLabel.classList.add('error');
     }
+    await new Promise(r => setTimeout(r, 350));
 
     // Download
     els.phaseLabel.textContent = 'Mengukur kecepatan unduh';
-    setActiveStep('download');
-    setReadout('0', 'Mbps');
-    setProgress(0);
+    els.phaseLabel.classList.remove('error');
+    setActiveTile('download');
+    setUnit('Mbps');
+    snapTo(0);
     try{
-      const down = await measureDownload(30_000_000, (mbps, frac) => {
-        setReadout(fmtMbps(mbps), 'Mbps');
-        setProgress(frac);
-      });
+      const down = await measureDownload(30_000_000, (mbps) => setTarget(mbps));
       markDone('download', fmtMbps(down) + ' Mbps');
-      setReadout(fmtMbps(down), 'Mbps');
+      snapTo(down);
     }catch(e){
       markError('download');
+      els.phaseLabel.textContent = 'Unduh gagal';
+      els.phaseLabel.classList.add('error');
     }
+    await new Promise(r => setTimeout(r, 350));
 
     // Upload
     els.phaseLabel.textContent = 'Mengukur kecepatan unggah';
-    setActiveStep('upload');
-    setReadout('0', 'Mbps');
-    setProgress(0);
+    els.phaseLabel.classList.remove('error');
+    setActiveTile('upload');
+    setUnit('Mbps');
+    snapTo(0);
     try{
-      const up = await measureUpload(10_000_000, (mbps, frac) => {
-        setReadout(fmtMbps(mbps), 'Mbps');
-        setProgress(frac);
-      });
+      const up = await measureUpload(10_000_000, (mbps) => setTarget(mbps));
       markDone('upload', fmtMbps(up) + ' Mbps');
-      setReadout(fmtMbps(up), 'Mbps');
+      snapTo(up);
     }catch(e){
       markError('upload');
+      els.phaseLabel.textContent = 'Unggah gagal';
+      els.phaseLabel.classList.add('error');
     }
 
-    els.phaseLabel.textContent = 'Tes selesai';
-    setActiveStep(null);
+    stopAnim();
+    setActiveTile(null);
+    if(!els.phaseLabel.classList.contains('error')){
+      els.phaseLabel.textContent = 'Tes selesai';
+    }
     els.startBtn.disabled = false;
     els.startBtn.textContent = 'Tes ulang';
   }
 
   els.startBtn.addEventListener('click', runTest);
   loadProvider();
+  renderGauge(0);
 })();
 </script>
 </body>
