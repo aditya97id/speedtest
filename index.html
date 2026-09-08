@@ -459,11 +459,10 @@
     return new Promise((resolve, reject) => {
       const start = performance.now();
       let totalLoaded = 0;
-      const perStreamLoaded = new Array(streamCount).fill(0);
       const tracker = createRateTracker(1000);
       let emaMbps = null;
       let stopped = false;
-      const xhrs = [];
+      const activeXhrs = new Set();
 
       function sample(){
         const now = performance.now();
@@ -481,31 +480,34 @@
         stopped = true;
         clearInterval(ticker);
         clearTimeout(durationTimer);
-        xhrs.forEach(x => { try{ x.abort(); }catch(e){} });
+        activeXhrs.forEach(x => { try{ x.abort(); }catch(e){} });
         const elapsed = (performance.now() - start) / 1000;
         if(totalLoaded > 0){ resolve((totalLoaded * 8) / elapsed / 1_000_000); } else { reject(new Error('all streams failed')); }
       }
       const durationTimer = setTimeout(finish, durationMs);
 
-      let doneCount = 0;
+      function launchStream(){
+        if(stopped) return;
+        const xhr = new XMLHttpRequest();
+        activeXhrs.add(xhr);
+        xhr.open('GET', DOWN_URL(streamBytes), true);
+        xhr.responseType = 'arraybuffer';
+        let prevLoaded = 0;
+        xhr.onprogress = (e) => {
+          totalLoaded += (e.loaded - prevLoaded);
+          prevLoaded = e.loaded;
+        };
+        xhr.onload = () => { activeXhrs.delete(xhr); if(!stopped) launchStream(); };
+        // Koneksi putus di tengah jalan (umum di sinyal lemah) — coba lagi, jangan menyerah begitu saja
+        xhr.onerror = () => { activeXhrs.delete(xhr); if(!stopped) launchStream(); };
+        xhr.onabort = () => { activeXhrs.delete(xhr); };
+        xhr.send();
+      }
+
       for(let i = 0; i < streamCount; i++){
-        // jeda kecil antar-koneksi supaya tidak selesai/bergerak serempak
-        setTimeout(() => {
-          if(stopped) return;
-          const xhr = new XMLHttpRequest();
-          xhr.open('GET', DOWN_URL(streamBytes), true);
-          xhr.responseType = 'arraybuffer';
-          xhr.onprogress = (e) => {
-            totalLoaded += (e.loaded - perStreamLoaded[i]);
-            perStreamLoaded[i] = e.loaded;
-          };
-          xhr.onloadend = () => {
-            doneCount++;
-            if(doneCount === streamCount) finish();
-          };
-          xhrs.push(xhr);
-          xhr.send();
-        }, i * 120);
+        // jeda antar-koneksi supaya tidak selesai/bergerak serempak, dan tidak membebani
+        // jaringan lemah dengan semua koneksi terbuka di saat bersamaan
+        setTimeout(() => launchStream(), i * 300);
       }
     });
   }
@@ -572,8 +574,9 @@
       }
 
       for(let i = 0; i < streamCount; i++){
-        // jeda kecil antar-koneksi supaya penyelesaian tiap potongan tidak numpuk bersamaan
-        setTimeout(() => launchChunk(), i * 120);
+        // jeda antar-koneksi supaya penyelesaian tiap potongan tidak numpuk bersamaan,
+        // dan tidak langsung membuka semua koneksi di jaringan yang sudah lemah
+        setTimeout(() => launchChunk(), i * 300);
       }
     });
   }
@@ -613,7 +616,7 @@
     setUnit('Mbps');
     snapTo(0);
     try{
-      const down = await measureDownload(60_000_000, 3, 6000, (mbps) => setTarget(mbps));
+      const down = await measureDownload(60_000_000, 2, 9000, (mbps) => setTarget(mbps));
       markDone('download', fmtMbps(down) + ' Mbps');
       snapTo(down);
     }catch(e){
@@ -630,7 +633,7 @@
     setUnit('Mbps');
     snapTo(0);
     try{
-      const up = await measureUpload(1_000_000, 3, 6000, (mbps) => setTarget(mbps));
+      const up = await measureUpload(150_000, 2, 9000, (mbps) => setTarget(mbps));
       markDone('upload', fmtMbps(up) + ' Mbps');
       snapTo(up);
     }catch(e){
