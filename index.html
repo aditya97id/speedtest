@@ -429,6 +429,29 @@
     return samples[Math.floor(samples.length / 2)];
   }
 
+  // ---- Penghitung laju berbasis jendela bergulir ----
+  // Kenapa perlu ini: kalau beberapa koneksi paralel kebetulan selesai/mengirim
+  // pada saat yang hampir sama, sampel sesaat (mis. per 0.2 detik) bisa melonjak
+  // jauh di atas kecepatan asli. Menghitung dari jendela ~1 detik terakhir membuat
+  // kebetulan seperti itu tidak lagi terlihat sebagai lonjakan palsu.
+  function createRateTracker(windowMs){
+    const samples = [];
+    return {
+      push(now, total){
+        samples.push({ t: now, total });
+        while(samples.length > 1 && now - samples[0].t > windowMs) samples.shift();
+      },
+      rate(now, total){
+        if(samples.length === 0) return null;
+        const oldest = samples[0];
+        const dt = (now - oldest.t) / 1000;
+        const dBytes = total - oldest.total;
+        if(dt < 0.3 || dBytes <= 0) return null;
+        return (dBytes * 8) / dt / 1_000_000;
+      }
+    };
+  }
+
   // ---- Download ----
   // Beberapa koneksi paralel (bukan 1) supaya benar-benar membebani link —
   // satu koneksi TCP saja dibatasi oleh latency dan tidak mencerminkan kapasitas asli.
@@ -437,24 +460,18 @@
       const start = performance.now();
       let totalLoaded = 0;
       const perStreamLoaded = new Array(streamCount).fill(0);
-      let lastTick = start, lastTotal = 0, emaMbps = null;
+      const tracker = createRateTracker(1000);
+      let emaMbps = null;
       let stopped = false;
       const xhrs = [];
 
       function sample(){
         const now = performance.now();
-        const dt = (now - lastTick) / 1000;
-        // lewati jendela sampel yang terlalu pendek/berisik (efek buffer awal TCP)
-        if(dt > 0.15){
-          const dLoaded = totalLoaded - lastTotal;
-          if(dLoaded > 0){
-            const inst = (dLoaded * 8) / dt / 1_000_000;
-            // rata-rata bergerak (EMA) meredam lonjakan sesaat jadi kurva yang halus
-            emaMbps = emaMbps === null ? inst : emaMbps * 0.7 + inst * 0.3;
-            onProgress(emaMbps);
-          }
-          lastTick = now;
-          lastTotal = totalLoaded;
+        tracker.push(now, totalLoaded);
+        const inst = tracker.rate(now, totalLoaded);
+        if(inst !== null){
+          emaMbps = emaMbps === null ? inst : emaMbps * 0.5 + inst * 0.5;
+          onProgress(emaMbps);
         }
       }
       const ticker = setInterval(sample, 200);
@@ -472,19 +489,23 @@
 
       let doneCount = 0;
       for(let i = 0; i < streamCount; i++){
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', DOWN_URL(streamBytes), true);
-        xhr.responseType = 'arraybuffer';
-        xhr.onprogress = (e) => {
-          totalLoaded += (e.loaded - perStreamLoaded[i]);
-          perStreamLoaded[i] = e.loaded;
-        };
-        xhr.onloadend = () => {
-          doneCount++;
-          if(doneCount === streamCount) finish();
-        };
-        xhrs.push(xhr);
-        xhr.send();
+        // jeda kecil antar-koneksi supaya tidak selesai/bergerak serempak
+        setTimeout(() => {
+          if(stopped) return;
+          const xhr = new XMLHttpRequest();
+          xhr.open('GET', DOWN_URL(streamBytes), true);
+          xhr.responseType = 'arraybuffer';
+          xhr.onprogress = (e) => {
+            totalLoaded += (e.loaded - perStreamLoaded[i]);
+            perStreamLoaded[i] = e.loaded;
+          };
+          xhr.onloadend = () => {
+            doneCount++;
+            if(doneCount === streamCount) finish();
+          };
+          xhrs.push(xhr);
+          xhr.send();
+        }, i * 120);
       }
     });
   }
@@ -507,22 +528,18 @@
     return new Promise((resolve, reject) => {
       const start = performance.now();
       let totalAcked = 0; // hanya byte yang sudah dikonfirmasi diterima server
-      let lastTick = start, lastTotal = 0, emaMbps = null;
+      const tracker = createRateTracker(1000);
+      let emaMbps = null;
       let stopped = false;
       const activeXhrs = new Set();
 
       function sample(){
         const now = performance.now();
-        const dt = (now - lastTick) / 1000;
-        if(dt > 0.15){
-          const dAcked = totalAcked - lastTotal;
-          if(dAcked > 0){
-            const inst = (dAcked * 8) / dt / 1_000_000;
-            emaMbps = emaMbps === null ? inst : emaMbps * 0.7 + inst * 0.3;
-            onProgress(emaMbps);
-          }
-          lastTick = now;
-          lastTotal = totalAcked;
+        tracker.push(now, totalAcked);
+        const inst = tracker.rate(now, totalAcked);
+        if(inst !== null){
+          emaMbps = emaMbps === null ? inst : emaMbps * 0.5 + inst * 0.5;
+          onProgress(emaMbps);
         }
       }
       const ticker = setInterval(sample, 200);
@@ -554,7 +571,10 @@
         xhr.send(blob);
       }
 
-      for(let i = 0; i < streamCount; i++) launchChunk();
+      for(let i = 0; i < streamCount; i++){
+        // jeda kecil antar-koneksi supaya penyelesaian tiap potongan tidak numpuk bersamaan
+        setTimeout(() => launchChunk(), i * 120);
+      }
     });
   }
 
