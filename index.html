@@ -5,8 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Speedtest</title>
 <meta name="description" content="Tes kecepatan internet: ping, unduh, dan unggah — diproses langsung di peramban Anda, tanpa menampilkan atau menyimpan alamat IP.">
+<link rel="icon" href="data:,">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://speed.cloudflare.com https://ipapi.co; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://speed.cloudflare.com" crossorigin>
+<link rel="preconnect" href="https://ipapi.co" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -367,7 +372,7 @@
   // ---- Provider detection (name only, IP never read or shown) ----
   async function loadProvider(){
     try{
-      const res = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
+      const res = await fetch('https://ipapi.co/json/', { cache: 'no-store', referrerPolicy: 'no-referrer' });
       const data = await res.json();
       const name = data.org || data.isp || data.company || null;
       els.provider.textContent = name ? `Terhubung melalui ${name}` : 'Penyedia layanan tidak terdeteksi';
@@ -376,15 +381,25 @@
     }
   }
 
+  // ---- Shared timeout helper: mencegah tombol macet kalau koneksi mati total ----
+  function withTimeout(ms){
+    const ctrl = new AbortController();
+    const id = setTimeout(() => ctrl.abort(), ms);
+    return { signal: ctrl.signal, clear: () => clearTimeout(id) };
+  }
+
   // ---- Ping ----
   async function measurePing(count){
     const samples = [];
     for(let i=0; i<count; i++){
       const t0 = performance.now();
+      const t = withTimeout(5000);
       try{
-        await fetch(DOWN_URL(0), { cache: 'no-store', mode: 'cors' });
+        await fetch(DOWN_URL(0), { cache: 'no-store', mode: 'cors', referrerPolicy: 'no-referrer', signal: t.signal });
       }catch(e){
         continue;
+      }finally{
+        t.clear();
       }
       const rtt = performance.now() - t0;
       if(i > 0){
@@ -403,6 +418,7 @@
       const xhr = new XMLHttpRequest();
       xhr.open('GET', DOWN_URL(bytes), true);
       xhr.responseType = 'arraybuffer';
+      xhr.timeout = 20000;
       const start = performance.now();
       xhr.onprogress = (e) => {
         const elapsed = (performance.now() - start) / 1000;
@@ -417,6 +433,7 @@
         resolve((total * 8) / elapsed / 1_000_000);
       };
       xhr.onerror = () => reject(new Error('download failed'));
+      xhr.ontimeout = () => reject(new Error('download timed out'));
       xhr.send();
     });
   }
@@ -436,6 +453,7 @@
       const blob = randomBlob(bytes);
       const xhr = new XMLHttpRequest();
       xhr.open('POST', UP_URL, true);
+      xhr.timeout = 20000;
       const start = performance.now();
       xhr.upload.onprogress = (e) => {
         const elapsed = (performance.now() - start) / 1000;
@@ -449,6 +467,7 @@
         resolve((bytes * 8) / elapsed / 1_000_000);
       };
       xhr.onerror = () => reject(new Error('upload failed'));
+      xhr.ontimeout = () => reject(new Error('upload timed out'));
       xhr.send(blob);
     });
   }
