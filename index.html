@@ -499,58 +499,62 @@
     return new Blob([arr]);
   }
 
-  function measureUpload(streamBytes, streamCount, durationMs, onProgress){
+  // Ukur upload lewat waktu tempuh tiap potongan data SAMPAI server benar-benar
+  // membalas (xhr.onload) — bukan lewat xhr.upload.onprogress, yang cuma melaporkan
+  // seberapa cepat data ditulis ke buffer OS (bisa jauh lebih cepat dari kecepatan
+  // jaringan sesungguhnya, sehingga angka live jadi menipu di awal upload).
+  function measureUpload(chunkBytes, streamCount, durationMs, onProgress){
     return new Promise((resolve, reject) => {
       const start = performance.now();
-      let totalLoaded = 0;
-      const perStreamLoaded = new Array(streamCount).fill(0);
+      let totalAcked = 0; // hanya byte yang sudah dikonfirmasi diterima server
       let lastTick = start, lastTotal = 0, emaMbps = null;
       let stopped = false;
-      const xhrs = [];
+      const activeXhrs = new Set();
 
       function sample(){
         const now = performance.now();
         const dt = (now - lastTick) / 1000;
         if(dt > 0.15){
-          const dLoaded = totalLoaded - lastTotal;
-          if(dLoaded > 0){
-            const inst = (dLoaded * 8) / dt / 1_000_000;
+          const dAcked = totalAcked - lastTotal;
+          if(dAcked > 0){
+            const inst = (dAcked * 8) / dt / 1_000_000;
             emaMbps = emaMbps === null ? inst : emaMbps * 0.7 + inst * 0.3;
             onProgress(emaMbps);
           }
           lastTick = now;
-          lastTotal = totalLoaded;
+          lastTotal = totalAcked;
         }
       }
       const ticker = setInterval(sample, 200);
 
-      function finish(){
+      function finalize(){
         if(stopped) return;
         stopped = true;
         clearInterval(ticker);
         clearTimeout(durationTimer);
-        xhrs.forEach(x => { try{ x.abort(); }catch(e){} });
+        activeXhrs.forEach(x => { try{ x.abort(); }catch(e){} });
         const elapsed = (performance.now() - start) / 1000;
-        if(totalLoaded > 0){ resolve((totalLoaded * 8) / elapsed / 1_000_000); } else { reject(new Error('all streams failed')); }
+        if(totalAcked > 0){ resolve((totalAcked * 8) / elapsed / 1_000_000); } else { reject(new Error('all streams failed')); }
       }
-      const durationTimer = setTimeout(finish, durationMs);
+      const durationTimer = setTimeout(finalize, durationMs);
 
-      let doneCount = 0;
-      for(let i = 0; i < streamCount; i++){
-        const blob = randomBlob(streamBytes);
+      function launchChunk(){
+        if(stopped) return;
+        const blob = randomBlob(chunkBytes);
         const xhr = new XMLHttpRequest();
+        activeXhrs.add(xhr);
         xhr.open('POST', UP_URL, true);
-        xhr.upload.onprogress = (e) => {
-          totalLoaded += (e.loaded - perStreamLoaded[i]);
-          perStreamLoaded[i] = e.loaded;
+        xhr.onload = () => {
+          activeXhrs.delete(xhr);
+          totalAcked += chunkBytes;
+          launchChunk(); // langsung kirim potongan berikutnya di slot ini
         };
-        xhr.onloadend = () => {
-          doneCount++;
-          if(doneCount === streamCount) finish();
-        };
-        xhrs.push(xhr);
+        xhr.onerror = () => { activeXhrs.delete(xhr); if(!stopped) launchChunk(); };
+        xhr.onabort = () => { activeXhrs.delete(xhr); };
         xhr.send(blob);
       }
+
+      for(let i = 0; i < streamCount; i++) launchChunk();
     });
   }
 
@@ -606,7 +610,7 @@
     setUnit('Mbps');
     snapTo(0);
     try{
-      const up = await measureUpload(20_000_000, 3, 6000, (mbps) => setTarget(mbps));
+      const up = await measureUpload(1_000_000, 3, 6000, (mbps) => setTarget(mbps));
       markDone('upload', fmtMbps(up) + ' Mbps');
       snapTo(up);
     }catch(e){
