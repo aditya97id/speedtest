@@ -418,9 +418,15 @@
       const xhr = new XMLHttpRequest();
       xhr.open('GET', DOWN_URL(bytes), true);
       xhr.responseType = 'arraybuffer';
-      xhr.timeout = 20000;
       const start = performance.now();
+      const STALL_MS = 15000; // gagal hanya kalau BENAR-BENAR tidak ada progres, bukan sekadar lambat
+      let stallTimer = setTimeout(() => xhr.abort(), STALL_MS);
+      function resetStallTimer(){
+        clearTimeout(stallTimer);
+        stallTimer = setTimeout(() => xhr.abort(), STALL_MS);
+      }
       xhr.onprogress = (e) => {
+        resetStallTimer();
         const elapsed = (performance.now() - start) / 1000;
         if(elapsed > 0.05 && e.loaded > 0){
           const mbps = (e.loaded * 8) / elapsed / 1_000_000;
@@ -428,12 +434,13 @@
         }
       };
       xhr.onload = () => {
+        clearTimeout(stallTimer);
         const elapsed = (performance.now() - start) / 1000;
         const total = xhr.response ? xhr.response.byteLength : bytes;
         resolve((total * 8) / elapsed / 1_000_000);
       };
-      xhr.onerror = () => reject(new Error('download failed'));
-      xhr.ontimeout = () => reject(new Error('download timed out'));
+      xhr.onerror = () => { clearTimeout(stallTimer); reject(new Error('download failed')); };
+      xhr.onabort = () => reject(new Error('download stalled'));
       xhr.send();
     });
   }
@@ -453,9 +460,15 @@
       const blob = randomBlob(bytes);
       const xhr = new XMLHttpRequest();
       xhr.open('POST', UP_URL, true);
-      xhr.timeout = 20000;
       const start = performance.now();
+      const STALL_MS = 15000;
+      let stallTimer = setTimeout(() => xhr.abort(), STALL_MS);
+      function resetStallTimer(){
+        clearTimeout(stallTimer);
+        stallTimer = setTimeout(() => xhr.abort(), STALL_MS);
+      }
       xhr.upload.onprogress = (e) => {
+        resetStallTimer();
         const elapsed = (performance.now() - start) / 1000;
         if(elapsed > 0.05 && e.loaded > 0){
           const mbps = (e.loaded * 8) / elapsed / 1_000_000;
@@ -463,11 +476,12 @@
         }
       };
       xhr.onload = () => {
+        clearTimeout(stallTimer);
         const elapsed = (performance.now() - start) / 1000;
         resolve((bytes * 8) / elapsed / 1_000_000);
       };
-      xhr.onerror = () => reject(new Error('upload failed'));
-      xhr.ontimeout = () => reject(new Error('upload timed out'));
+      xhr.onerror = () => { clearTimeout(stallTimer); reject(new Error('upload failed')); };
+      xhr.onabort = () => reject(new Error('upload stalled'));
       xhr.send(blob);
     });
   }
