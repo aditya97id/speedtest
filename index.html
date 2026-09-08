@@ -7,7 +7,7 @@
 <meta name="description" content="Tes kecepatan internet: ping, unduh, dan unggah — diproses langsung di peramban Anda, tanpa menampilkan atau menyimpan alamat IP.">
 <link rel="icon" href="data:,">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://speed.cloudflare.com https://ipapi.co; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://speed.cloudflare.com https://ipapi.co https://ipwho.is; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://speed.cloudflare.com" crossorigin>
@@ -370,15 +370,32 @@
   }
 
   // ---- Provider detection (name only, IP never read or shown) ----
+  // Coba beberapa API deteksi ISP secara berurutan; pakai yang pertama berhasil.
+  // Tidak ada satupun yang membaca/menampilkan alamat IP itu sendiri, hanya nama penyedianya.
+  const PROVIDER_APIS = [
+    { url: 'https://ipapi.co/json/', pick: (d) => d.org || d.isp || d.company },
+    { url: 'https://ipwho.is/', pick: (d) => (d && d.connection && (d.connection.isp || d.connection.org)) },
+  ];
+
   async function loadProvider(){
-    try{
-      const res = await fetch('https://ipapi.co/json/', { cache: 'no-store', referrerPolicy: 'no-referrer' });
-      const data = await res.json();
-      const name = data.org || data.isp || data.company || null;
-      els.provider.textContent = name ? `Terhubung melalui ${name}` : 'Penyedia layanan tidak terdeteksi';
-    }catch(e){
-      els.provider.textContent = 'Penyedia layanan tidak terdeteksi';
+    for(const api of PROVIDER_APIS){
+      const t = withTimeout(4000);
+      try{
+        const res = await fetch(api.url, { cache: 'no-store', referrerPolicy: 'no-referrer', signal: t.signal });
+        if(!res.ok) continue;
+        const data = await res.json();
+        const name = api.pick(data);
+        if(name){
+          els.provider.textContent = `Terhubung melalui ${name}`;
+          return;
+        }
+      }catch(e){
+        // coba API berikutnya
+      }finally{
+        t.clear();
+      }
     }
+    els.provider.textContent = 'Penyedia layanan tidak terdeteksi';
   }
 
   // ---- Shared timeout helper: mencegah tombol macet kalau koneksi mati total ----
@@ -413,35 +430,62 @@
   }
 
   // ---- Download ----
-  function measureDownload(bytes, onProgress){
+  // Beberapa koneksi paralel (bukan 1) supaya benar-benar membebani link —
+  // satu koneksi TCP saja dibatasi oleh latency dan tidak mencerminkan kapasitas asli.
+  function measureDownload(streamBytes, streamCount, durationMs, onProgress){
     return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('GET', DOWN_URL(bytes), true);
-      xhr.responseType = 'arraybuffer';
       const start = performance.now();
-      const STALL_MS = 15000; // gagal hanya kalau BENAR-BENAR tidak ada progres, bukan sekadar lambat
-      let stallTimer = setTimeout(() => xhr.abort(), STALL_MS);
-      function resetStallTimer(){
-        clearTimeout(stallTimer);
-        stallTimer = setTimeout(() => xhr.abort(), STALL_MS);
-      }
-      xhr.onprogress = (e) => {
-        resetStallTimer();
-        const elapsed = (performance.now() - start) / 1000;
-        if(elapsed > 0.05 && e.loaded > 0){
-          const mbps = (e.loaded * 8) / elapsed / 1_000_000;
-          onProgress(mbps);
+      let totalLoaded = 0;
+      const perStreamLoaded = new Array(streamCount).fill(0);
+      let lastTick = start, lastTotal = 0, emaMbps = null;
+      let stopped = false;
+      const xhrs = [];
+
+      function sample(){
+        const now = performance.now();
+        const dt = (now - lastTick) / 1000;
+        // lewati jendela sampel yang terlalu pendek/berisik (efek buffer awal TCP)
+        if(dt > 0.15){
+          const dLoaded = totalLoaded - lastTotal;
+          if(dLoaded > 0){
+            const inst = (dLoaded * 8) / dt / 1_000_000;
+            // rata-rata bergerak (EMA) meredam lonjakan sesaat jadi kurva yang halus
+            emaMbps = emaMbps === null ? inst : emaMbps * 0.7 + inst * 0.3;
+            onProgress(emaMbps);
+          }
+          lastTick = now;
+          lastTotal = totalLoaded;
         }
-      };
-      xhr.onload = () => {
-        clearTimeout(stallTimer);
+      }
+      const ticker = setInterval(sample, 200);
+
+      function finish(){
+        if(stopped) return;
+        stopped = true;
+        clearInterval(ticker);
+        clearTimeout(durationTimer);
+        xhrs.forEach(x => { try{ x.abort(); }catch(e){} });
         const elapsed = (performance.now() - start) / 1000;
-        const total = xhr.response ? xhr.response.byteLength : bytes;
-        resolve((total * 8) / elapsed / 1_000_000);
-      };
-      xhr.onerror = () => { clearTimeout(stallTimer); reject(new Error('download failed')); };
-      xhr.onabort = () => reject(new Error('download stalled'));
-      xhr.send();
+        if(totalLoaded > 0){ resolve((totalLoaded * 8) / elapsed / 1_000_000); } else { reject(new Error('all streams failed')); }
+      }
+      const durationTimer = setTimeout(finish, durationMs);
+
+      let doneCount = 0;
+      for(let i = 0; i < streamCount; i++){
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', DOWN_URL(streamBytes), true);
+        xhr.responseType = 'arraybuffer';
+        xhr.onprogress = (e) => {
+          totalLoaded += (e.loaded - perStreamLoaded[i]);
+          perStreamLoaded[i] = e.loaded;
+        };
+        xhr.onloadend = () => {
+          doneCount++;
+          if(doneCount === streamCount) finish();
+        };
+        xhrs.push(xhr);
+        xhr.send();
+      }
     });
   }
 
@@ -455,34 +499,58 @@
     return new Blob([arr]);
   }
 
-  function measureUpload(bytes, onProgress){
+  function measureUpload(streamBytes, streamCount, durationMs, onProgress){
     return new Promise((resolve, reject) => {
-      const blob = randomBlob(bytes);
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', UP_URL, true);
       const start = performance.now();
-      const STALL_MS = 15000;
-      let stallTimer = setTimeout(() => xhr.abort(), STALL_MS);
-      function resetStallTimer(){
-        clearTimeout(stallTimer);
-        stallTimer = setTimeout(() => xhr.abort(), STALL_MS);
-      }
-      xhr.upload.onprogress = (e) => {
-        resetStallTimer();
-        const elapsed = (performance.now() - start) / 1000;
-        if(elapsed > 0.05 && e.loaded > 0){
-          const mbps = (e.loaded * 8) / elapsed / 1_000_000;
-          onProgress(mbps);
+      let totalLoaded = 0;
+      const perStreamLoaded = new Array(streamCount).fill(0);
+      let lastTick = start, lastTotal = 0, emaMbps = null;
+      let stopped = false;
+      const xhrs = [];
+
+      function sample(){
+        const now = performance.now();
+        const dt = (now - lastTick) / 1000;
+        if(dt > 0.15){
+          const dLoaded = totalLoaded - lastTotal;
+          if(dLoaded > 0){
+            const inst = (dLoaded * 8) / dt / 1_000_000;
+            emaMbps = emaMbps === null ? inst : emaMbps * 0.7 + inst * 0.3;
+            onProgress(emaMbps);
+          }
+          lastTick = now;
+          lastTotal = totalLoaded;
         }
-      };
-      xhr.onload = () => {
-        clearTimeout(stallTimer);
+      }
+      const ticker = setInterval(sample, 200);
+
+      function finish(){
+        if(stopped) return;
+        stopped = true;
+        clearInterval(ticker);
+        clearTimeout(durationTimer);
+        xhrs.forEach(x => { try{ x.abort(); }catch(e){} });
         const elapsed = (performance.now() - start) / 1000;
-        resolve((bytes * 8) / elapsed / 1_000_000);
-      };
-      xhr.onerror = () => { clearTimeout(stallTimer); reject(new Error('upload failed')); };
-      xhr.onabort = () => reject(new Error('upload stalled'));
-      xhr.send(blob);
+        if(totalLoaded > 0){ resolve((totalLoaded * 8) / elapsed / 1_000_000); } else { reject(new Error('all streams failed')); }
+      }
+      const durationTimer = setTimeout(finish, durationMs);
+
+      let doneCount = 0;
+      for(let i = 0; i < streamCount; i++){
+        const blob = randomBlob(streamBytes);
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', UP_URL, true);
+        xhr.upload.onprogress = (e) => {
+          totalLoaded += (e.loaded - perStreamLoaded[i]);
+          perStreamLoaded[i] = e.loaded;
+        };
+        xhr.onloadend = () => {
+          doneCount++;
+          if(doneCount === streamCount) finish();
+        };
+        xhrs.push(xhr);
+        xhr.send(blob);
+      }
     });
   }
 
@@ -521,7 +589,7 @@
     setUnit('Mbps');
     snapTo(0);
     try{
-      const down = await measureDownload(30_000_000, (mbps) => setTarget(mbps));
+      const down = await measureDownload(60_000_000, 3, 6000, (mbps) => setTarget(mbps));
       markDone('download', fmtMbps(down) + ' Mbps');
       snapTo(down);
     }catch(e){
@@ -538,7 +606,7 @@
     setUnit('Mbps');
     snapTo(0);
     try{
-      const up = await measureUpload(10_000_000, (mbps) => setTarget(mbps));
+      const up = await measureUpload(20_000_000, 3, 6000, (mbps) => setTarget(mbps));
       markDone('upload', fmtMbps(up) + ' Mbps');
       snapTo(up);
     }catch(e){
